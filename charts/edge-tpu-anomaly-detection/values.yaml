@@ -109,6 +109,7 @@ grafana:
 # 7. Automated Mitigation Worker
 mitigation:
   enabled: true
+  replicaCount: 1
   image:
     repository: python
     tag: 3.11-slim-bookworm

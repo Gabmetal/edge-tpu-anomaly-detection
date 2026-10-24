@@ -20,7 +20,7 @@ metadata:
     {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
     app.kubernetes.io/component: automated-mitigation
 spec:
-  replicas: {{ .Values.mitigation.replicaCount }}
+  replicas: {{ .Values.mitigation.replicaCount | default 1 }}
   selector:
     matchLabels:
       {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
