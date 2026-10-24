@@ -3,10 +3,11 @@ main.py
 FastAPI Application Entrypoint for Edge TPU Anomaly Detection Microservice.
 """
 
+from collections import deque
 from contextlib import asynccontextmanager
 import logging
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.responses import HTMLResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -21,6 +22,30 @@ from app.schemas import (
     StatusResponse,
     TelemetryVectorRequest,
 )
+
+# In-memory circular buffer for recent telemetry events & anomalies
+EVENT_LOG: deque = deque(maxlen=100)
+
+def record_event(res: PredictionResponse, metadata: Optional[Dict] = None):
+    meta = metadata or res.metadata or {}
+    scenario = meta.get("scenario", "telemetry_stream")
+    source_ip = meta.get("src_ip", "192.168.0.x / Cluster Ingress")
+    
+    evt = {
+        "id": f"evt-{int(time.time() * 1000)}",
+        "timestamp": res.timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "is_anomaly": res.is_anomaly,
+        "mse": res.mse,
+        "threshold": res.threshold,
+        "latency_ms": res.inference_latency_ms,
+        "root_cause": res.top_root_cause.feature_name if res.top_root_cause else "nominal",
+        "root_cause_residual": res.top_root_cause.residual_mse if res.top_root_cause else 0.0,
+        "scenario": scenario,
+        "source_ip": source_ip,
+        "status": "QUARANTINED" if res.is_anomaly else "NOMINAL",
+        "mitigation": "OpenWrt fw4 Quarantine" if res.is_anomaly else "Normal Passthrough",
+    }
+    EVENT_LOG.appendleft(evt)
 
 # Logging configuration
 logging.basicConfig(
@@ -129,6 +154,12 @@ async def get_status():
     )
 
 
+@app.get("/v1/events", tags=["Diagnostics"])
+async def get_events(limit: int = 50):
+    """Returns the most recent flagged anomaly events and telemetry audit records."""
+    return list(EVENT_LOG)[:limit]
+
+
 @app.post("/v1/predict", response_model=Union[PredictionResponse, List[PredictionResponse]], tags=["Inference"])
 async def predict_single(req: Union[TelemetryVectorRequest, List[TelemetryVectorRequest]]):
     """Evaluates a single or batched 10-second window 32-dim normalized telemetry vector on Edge TPU."""
@@ -142,6 +173,7 @@ async def predict_single(req: Union[TelemetryVectorRequest, List[TelemetryVector
                 timestamp=item.timestamp,
                 metadata=item.metadata,
             )
+            record_event(res, item.metadata)
             results.append(res)
         return results if len(results) > 1 else results[0]
     else:
@@ -151,6 +183,7 @@ async def predict_single(req: Union[TelemetryVectorRequest, List[TelemetryVector
                 timestamp=req.timestamp,
                 metadata=req.metadata,
             )
+            record_event(result, req.metadata)
             return result
         except ValueError as ve:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
@@ -174,6 +207,7 @@ async def predict_batch(batch_req: BatchTelemetryRequest):
         )
         if res.is_anomaly:
             anomalies += 1
+        record_event(res, item.metadata)
         results.append(res)
 
     total_time_ms = (time.perf_counter() - t0) * 1000.0

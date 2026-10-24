@@ -2,8 +2,13 @@
 dashboard.py
 Embedded Cyber SOC Dashboard for Edge TPU Anomaly Detection Microservice.
 Served directly as modern responsive single-page application at '/' and '/ui'.
-Optimized with mobile-first responsive layout, touch-friendly navigation,
-and live hardware observability.
+Includes:
+  - Mobile-first responsive navigation with drawer
+  - Live hardware HUD & sub-millisecond Coral TPU meters
+  - Real-time Chart.js MSE streaming chart & feature residuals
+  - Interactive attack simulator testbench
+  - Live Flagged Incidents & Quarantine Audit Log table
+  - Direct portals to AdGuard Home Query Log, OpenWrt Firewall, and Grafana
 """
 
 def get_dashboard_html() -> str:
@@ -49,7 +54,6 @@ def get_dashboard_html() -> str:
     .animate-pulse-subtle {
       animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
-    /* Custom scrollbar for sleeker dark-mode look */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -95,11 +99,15 @@ def get_dashboard_html() -> str:
         </div>
 
         <!-- Center: Desktop Navigation Anchor Links -->
-        <nav class="hidden lg:flex items-center space-x-1 bg-surface-900/60 p-1 rounded-xl border border-slate-800/80 text-xs font-medium text-slate-300">
+        <nav class="hidden xl:flex items-center space-x-1 bg-surface-900/60 p-1 rounded-xl border border-slate-800/80 text-xs font-medium text-slate-300">
           <a href="#overview" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Overview</a>
-          <a href="#metrics" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Live MSE & Residuals</a>
-          <a href="#simulator" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Attack Simulator</a>
-          <a href="#infrastructure" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Nodes & Quarantine</a>
+          <a href="#metrics" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Live MSE</a>
+          <a href="#simulator" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Simulator</a>
+          <a href="#events" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition text-brand-400 font-semibold flex items-center space-x-1">
+            <span>Flagged Events</span>
+            <span class="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          </a>
+          <a href="#infrastructure" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Topology</a>
         </nav>
 
         <!-- Right: Telemetry Badges & Action Buttons -->
@@ -134,7 +142,7 @@ def get_dashboard_html() -> str:
           </div>
 
           <!-- Mobile Hamburger Toggle Button -->
-          <button type="button" onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" aria-label="Toggle navigation">
+          <button type="button" onclick="toggleMobileMenu()" class="xl:hidden p-2 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" aria-label="Toggle navigation">
             <svg id="hamburger-icon" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -149,7 +157,7 @@ def get_dashboard_html() -> str:
     </div>
 
     <!-- Mobile Collapsible Menu Drawer -->
-    <div id="mobile-menu" class="hidden lg:hidden border-b border-slate-800/80 bg-surface-900/95 backdrop-blur-xl px-4 pt-3 pb-5 space-y-3">
+    <div id="mobile-menu" class="hidden xl:hidden border-b border-slate-800/80 bg-surface-900/95 backdrop-blur-xl px-4 pt-3 pb-5 space-y-3">
       
       <!-- Mobile Nav Links -->
       <nav class="grid grid-cols-2 gap-2 text-xs font-medium text-slate-300">
@@ -165,9 +173,9 @@ def get_dashboard_html() -> str:
           <svg class="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
           <span>Simulator</span>
         </a>
-        <a href="#infrastructure" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2">
-          <svg class="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
-          <span>Nodes</span>
+        <a href="#events" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2 text-rose-300">
+          <svg class="h-4 w-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span>Flagged Events</span>
         </a>
       </nav>
 
@@ -414,7 +422,66 @@ def get_dashboard_html() -> str:
       </div>
     </section>
 
-    <!-- Section 4: Nodes & Infrastructure Details -->
+    <!-- Section 4: Flagged Threat Incidents & Defense Audit Log -->
+    <section id="events" class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-white">Flagged Threat Incidents & Defense Log</h2>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-300 border border-rose-800/80">Real-Time Audit</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Chronological record of anomalous telemetry vectors evaluated on Edge TPU and router quarantine status</p>
+        </div>
+        
+        <!-- Quick Portals to See Blocked Things -->
+        <div class="flex items-center space-x-2 text-xs">
+          <a href="http://192.168.0.1:8080/#querylog" target="_blank" class="px-3 py-1.5 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-slate-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm">
+            <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+            <span>AdGuard Query Log</span>
+            <svg class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+          <a href="https://192.168.0.1" target="_blank" class="px-3 py-1.5 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-slate-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span>OpenWrt Firewall</span>
+            <svg class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Incidents Table Container -->
+      <div class="bg-surface-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300 divide-y divide-slate-800/80">
+            <thead class="bg-surface-950/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <tr>
+                <th scope="col" class="py-3 px-4">Status</th>
+                <th scope="col" class="py-3 px-4">Timestamp</th>
+                <th scope="col" class="py-3 px-4">Threat / Scenario</th>
+                <th scope="col" class="py-3 px-4">Reconstruction MSE</th>
+                <th scope="col" class="py-3 px-4">Root Cause Dimension</th>
+                <th scope="col" class="py-3 px-4">Latency</th>
+                <th scope="col" class="py-3 px-4">Mitigation Action</th>
+              </tr>
+            </thead>
+            <tbody id="incidents-table-body" class="divide-y divide-slate-800/50 font-mono text-[11px]">
+              <tr id="empty-table-row">
+                <td colspan="7" class="py-8 text-center text-slate-500 font-sans text-xs">
+                  <div class="flex flex-col items-center justify-center space-y-1">
+                    <svg class="h-8 w-8 text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>No critical anomalies flagged in recent window buffer.</span>
+                    <span class="text-[11px] text-slate-600">Simulate an attack above or send live telemetry to populate incidents.</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Nodes & Infrastructure Details -->
     <section id="infrastructure" class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Cluster Nodes & Gateway Infrastructure</h2>
@@ -451,7 +518,7 @@ def get_dashboard_html() -> str:
             <div class="flex justify-between py-2">
               <dt class="text-slate-400">AdGuard Home DNS:</dt>
               <dd class="font-mono text-slate-300">
-                <a href="http://192.168.0.1:8080" target="_blank" class="text-indigo-400 hover:underline">192.168.0.1:8080 &rarr;</a>
+                <a href="http://192.168.0.1:8080/#querylog" target="_blank" class="text-indigo-400 hover:underline">192.168.0.1:8080 (Query Log) &rarr;</a>
               </dd>
             </div>
           </dl>
@@ -495,7 +562,7 @@ def get_dashboard_html() -> str:
   </main>
 
   <!-- Sticky Bottom Quick-Jump on Mobile -->
-  <div class="lg:hidden fixed bottom-4 right-4 z-40">
+  <div class="xl:hidden fixed bottom-4 right-4 z-40">
     <a href="#" class="h-10 w-10 rounded-full bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition active:scale-90" aria-label="Back to top">
       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
@@ -515,7 +582,6 @@ def get_dashboard_html() -> str:
     let totalInferences = 0;
     let anomaliesCount = 0;
     let isPolling = true;
-    let pollInterval = null;
 
     // Mobile Hamburger Menu Toggle
     function toggleMobileMenu() {
@@ -542,6 +608,7 @@ def get_dashboard_html() -> str:
         icon.classList.remove('text-slate-500');
         icon.classList.add('text-emerald-400');
         updateStatus();
+        fetchEvents();
       } else {
         icon.classList.remove('animate-spin');
         icon.classList.remove('text-emerald-400');
@@ -622,6 +689,59 @@ def get_dashboard_html() -> str:
         }
       }
     });
+
+    // Render Event Rows in Flagged Events Table
+    function renderEvents(events) {
+      const tbody = document.getElementById('incidents-table-body');
+      if (!events || events.length === 0) return;
+
+      tbody.innerHTML = '';
+      events.slice(0, 15).forEach(evt => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-surface-850/60 transition-colors";
+        
+        const badgeClass = evt.is_anomaly 
+          ? "bg-rose-950/80 text-rose-300 border border-rose-800" 
+          : "bg-emerald-950/80 text-emerald-300 border border-emerald-800";
+        
+        const badgeText = evt.is_anomaly ? "QUARANTINED" : "NOMINAL";
+        const dateStr = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : "--:--:--";
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">
+              ${badgeText}
+            </span>
+          </td>
+          <td class="py-2.5 px-4 text-slate-400 font-mono">${dateStr}</td>
+          <td class="py-2.5 px-4 font-semibold ${evt.is_anomaly ? 'text-rose-400' : 'text-slate-200'}">
+            ${evt.scenario.toUpperCase()}
+          </td>
+          <td class="py-2.5 px-4 font-mono font-bold ${evt.is_anomaly ? 'text-rose-400' : 'text-emerald-400'}">
+            ${evt.mse.toFixed(5)} <span class="text-slate-500 font-normal">/ ${evt.threshold.toFixed(5)}</span>
+          </td>
+          <td class="py-2.5 px-4 font-mono text-cyan-400">
+            ${evt.root_cause} <span class="text-slate-500 text-[10px]">(${evt.root_cause_residual.toFixed(4)})</span>
+          </td>
+          <td class="py-2.5 px-4 font-mono text-emerald-400">${evt.latency_ms.toFixed(2)} ms</td>
+          <td class="py-2.5 px-4 font-sans text-slate-400">${evt.mitigation}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Fetch Events API
+    async function fetchEvents() {
+      if (!isPolling) return;
+      try {
+        const res = await fetch('/v1/events');
+        if (!res.ok) return;
+        const events = await res.json();
+        renderEvents(events);
+      } catch (e) {
+        console.warn('Events fetch error', e);
+      }
+    }
 
     // Fetch live status periodically
     async function updateStatus() {
@@ -751,14 +871,19 @@ def get_dashboard_html() -> str:
           residualChart.update();
         }
 
+        // Instantly refresh the Flagged Events table
+        fetchEvents();
+
       } catch (e) {
         document.getElementById('sim-text').innerText = `Simulation failed: ${e}`;
       }
     }
 
-    // Polling timer (3 seconds)
-    pollInterval = setInterval(updateStatus, 3000);
+    // Polling timers
+    setInterval(updateStatus, 3000);
+    setInterval(fetchEvents, 3000);
     updateStatus();
+    fetchEvents();
   </script>
 
 </body>
