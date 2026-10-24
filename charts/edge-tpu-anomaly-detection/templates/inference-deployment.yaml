@@ -60,10 +60,14 @@ spec:
               containerPort: {{ .Values.inference.service.port }}
               protocol: TCP
           securityContext:
+            {{- if .Values.inference.hardware.privileged }}
+            privileged: true
+            {{- else }}
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
             capabilities:
               drop: ["ALL"]
+            {{- end }}
           resources:
             requests:
               {{- toYaml .Values.inference.resources.requests | nindent 14 }}
@@ -72,6 +76,13 @@ spec:
               {{- if eq .Values.inference.hardware.mode "devicePlugin" }}
               google.com/edgetpu: "1"
               {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 15
           livenessProbe:
             httpGet:
               path: /healthz

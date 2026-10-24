@@ -19,6 +19,7 @@ inference:
     mode: hostPath
     devicePath: /dev/bus/usb
     groupGid: 46 # GID of the host 'plugdev' group
+    privileged: true # Required for hostPath USB access under containerd without device plugin
   
   config:
     logLevel: info

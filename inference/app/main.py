@@ -6,7 +6,7 @@ FastAPI Application Entrypoint for Edge TPU Anomaly Detection Microservice.
 from contextlib import asynccontextmanager
 import logging
 import time
-from typing import Dict
+from typing import Dict, List, Union
 from fastapi import FastAPI, HTTPException, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
@@ -120,21 +120,34 @@ async def get_status():
     )
 
 
-@app.post("/v1/predict", response_model=PredictionResponse, tags=["Inference"])
-async def predict_single(req: TelemetryVectorRequest):
-    """Evaluates a single 10-second window 32-dim normalized telemetry vector on Edge TPU."""
-    try:
-        result = await engine.evaluate_vector(
-            features=req.features,
-            timestamp=req.timestamp,
-            metadata=req.metadata,
-        )
-        return result
-    except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Prediction failed: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+@app.post("/v1/predict", response_model=Union[PredictionResponse, List[PredictionResponse]], tags=["Inference"])
+async def predict_single(req: Union[TelemetryVectorRequest, List[TelemetryVectorRequest]]):
+    """Evaluates a single or batched 10-second window 32-dim normalized telemetry vector on Edge TPU."""
+    if isinstance(req, list):
+        if not req:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Empty vector batch")
+        results = []
+        for item in req:
+            res = await engine.evaluate_vector(
+                features=item.features,
+                timestamp=item.timestamp,
+                metadata=item.metadata,
+            )
+            results.append(res)
+        return results if len(results) > 1 else results[0]
+    else:
+        try:
+            result = await engine.evaluate_vector(
+                features=req.features,
+                timestamp=req.timestamp,
+                metadata=req.metadata,
+            )
+            return result
+        except ValueError as ve:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
+        except Exception as e:
+            logger.error(f"Prediction failed: {e}", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @app.post("/v1/predict/batch", response_model=BatchPredictionResponse, tags=["Inference"])

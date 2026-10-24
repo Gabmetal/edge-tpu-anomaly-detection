@@ -44,10 +44,11 @@ def send_netflow_udp(host: str, port: int, flow_dict: dict):
 
 def simulate_normal_cycle(vector_host: str, syslog_port: int, netflow_port: int, count: int = 20):
     print(f"[INFO] Emitting {count} normal telemetry events to Vector ({vector_host})...")
+    ts = time.strftime("%b %d %H:%M:%S")
     for _ in range(count):
-        # 1. Normal DNS query
+        # 1. Normal DNS query (RFC 3164 OpenWrt format)
         dom = random.choice(NORMAL_DOMAINS)
-        dns_log = f"<134>1 {time.strftime('%Y-%m-%dT%H:%M:%SZ')} openwrt dnsmasq[1420] - - query[A] {dom} from 192.168.1.{random.randint(10, 50)}"
+        dns_log = f"<134>{ts} openwrt dnsmasq[1420]: query[A] {dom} from 192.168.1.{random.randint(10, 50)}"
         send_syslog_udp(vector_host, syslog_port, dns_log)
 
         # 2. Normal Flow Record
@@ -67,6 +68,7 @@ def simulate_normal_cycle(vector_host: str, syslog_port: int, netflow_port: int,
 
 def simulate_attack_cycle(vector_host: str, syslog_port: int, netflow_port: int, attack_type: str):
     print(f"\n[ALERT] Injecting Attack Scenario: {attack_type.upper()}...")
+    ts = time.strftime("%b %d %H:%M:%S")
 
     if attack_type == "syn_flood":
         # Surge of SYN-only packets, high pps, small packet sizes
@@ -83,14 +85,14 @@ def simulate_attack_cycle(vector_host: str, syslog_port: int, netflow_port: int,
             }
             send_netflow_udp(vector_host, netflow_port, flow)
             # Associated firewall drop log
-            fw_log = f"<130>1 {time.strftime('%Y-%m-%dT%H:%M:%SZ')} openwrt kernel - - [NFT-REJECT] IN=br-lan OUT=wan PROTO=TCP SPT={random.randint(1024, 65535)} DPT=80 FLAGS=SYN"
+            fw_log = f"<130>{ts} openwrt kernel: [NFT-REJECT] IN=br-lan OUT=wan PROTO=TCP SPT={random.randint(1024, 65535)} DPT=80 FLAGS=SYN"
             send_syslog_udp(vector_host, syslog_port, fw_log)
 
     elif attack_type == "dns_tunnel":
         # Surging NXDOMAIN queries for random high-entropy subdomains
         for _ in range(80):
             dga = f"{random.randint(10000, 99999)}.{random.choice(MALICIOUS_DGA_DOMAINS)}"
-            dns_log = f"<134>1 {time.strftime('%Y-%m-%dT%H:%M:%SZ')} openwrt dnsmasq[1420] - - query[TXT] {dga} reply {dga} is NXDOMAIN"
+            dns_log = f"<134>{ts} openwrt dnsmasq[1420]: query[TXT] {dga} reply {dga} is NXDOMAIN"
             send_syslog_udp(vector_host, syslog_port, dns_log)
 
     elif attack_type == "port_scan":
@@ -108,7 +110,7 @@ def simulate_attack_cycle(vector_host: str, syslog_port: int, netflow_port: int,
                 "dst_port": port,
             }
             send_netflow_udp(vector_host, netflow_port, flow)
-            fw_log = f"<130>1 {time.strftime('%Y-%m-%dT%H:%M:%SZ')} openwrt kernel - - [NFT-REJECT] IN=br-lan OUT= PROTO=TCP SPT=49152 DPT={port} FLAGS=SYN"
+            fw_log = f"<130>{ts} openwrt kernel: [NFT-REJECT] IN=br-lan OUT= PROTO=TCP SPT=49152 DPT={port} FLAGS=SYN"
             send_syslog_udp(vector_host, syslog_port, fw_log)
 
 
