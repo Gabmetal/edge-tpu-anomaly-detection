@@ -1,0 +1,22 @@
+# /etc/udev/rules.d/99-edgetpu-accelerator.rules
+# Udev rules for Google Coral Edge TPU devices (USB and PCIe/M.2/Dual Edge TPU)
+# Grants read/write access to non-root users in the 'plugdev' group.
+
+# 1. Google Coral USB Accelerator - Initial State (Bootloader / DFU Mode)
+# Before firmware is pushed into the device by libedgetpu:
+# Vendor: 1a6e (Global Unichip Corp.), Product: 089a
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1a6e", ATTRS{idProduct}=="089a", GROUP="plugdev", MODE="0660", TAG+="uaccess"
+
+# 2. Google Coral USB Accelerator - Operating State (Edge TPU Initialized)
+# After libedgetpu uploads the firmware and resets the USB bus:
+# Vendor: 18d1 (Google Inc.), Product: 9302
+SUBSYSTEM=="usb", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="9302", GROUP="plugdev", MODE="0660", TAG+="uaccess"
+
+# 3. Google Coral PCIe / M.2 / Mini PCIe Accelerators (Gasket / Apex Driver)
+# Standard Apex kernel driver device nodes (/dev/apex_0, /dev/apex_1):
+SUBSYSTEM=="apex", KERNEL=="apex_*", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="gasket", KERNEL=="gasket_*", GROUP="plugdev", MODE="0660"
+
+# 4. Fallback rule for USB device nodes in /dev/bus/usb/
+SUBSYSTEM=="usb-device", ATTRS{idVendor}=="1a6e", ATTRS{idProduct}=="089a", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="usb-device", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="9302", GROUP="plugdev", MODE="0660"

@@ -1,0 +1,103 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: anomaly-detection
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# NetworkPolicy for Vector Telemetry Agent
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-vector-traffic
+  namespace: anomaly-detection
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vector
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Telemetry Ingress from OpenWrt Router (Syslog 514 & NetFlow 2055)
+    - ports:
+        - protocol: UDP
+          port: 514
+        - protocol: TCP
+          port: 514
+        - protocol: UDP
+          port: 2055
+    # 2. Prometheus / VictoriaMetrics Metrics Scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # 1. Push windowed feature vectors to Inference Microservice on HTTP 8000
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: edge-tpu-inference
+      ports:
+        - protocol: TCP
+          port: 8000
+    # 2. Allow CoreDNS queries
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# NetworkPolicy for Air-Gapped Edge TPU Inference Service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inference-traffic
+  namespace: anomaly-detection
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: edge-tpu-inference
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow HTTP POST evaluation vectors from Vector agent only
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: vector
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow Prometheus / VictoriaMetrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Air-gapped constraint: zero outbound internet traffic permitted
+    # Only internal CoreDNS resolution allowed
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

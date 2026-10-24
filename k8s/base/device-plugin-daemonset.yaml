@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coral-device-plugin
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: coral-device-plugin
+    app.kubernetes.io/component: device-plugin
+    app.kubernetes.io/part-of: edge-ml-infrastructure
+spec:
+  selector:
+    matchLabels:
+      name: coral-device-plugin
+  template:
+    metadata:
+      labels:
+        name: coral-device-plugin
+    spec:
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      containers:
+        - name: coral-device-plugin
+          # Standard community Coral K8s device plugin or multi-arch build
+          image: ghcr.io/mgb/coral-device-plugin:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: dev-apex
+              mountPath: /dev/apex_0
+            - name: dev-bus-usb
+              mountPath: /dev/bus/usb
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: dev-apex
+          hostPath:
+            path: /dev/apex_0
+            type: CharDevice
+        - name: dev-bus-usb
+          hostPath:
+            path: /dev/bus/usb
+            type: Directory
+      nodeSelector:
+        # Target nodes labeled with coral accelerator capability
+        # kubectl label node <node-name> feature.node.kubernetes.io/coral-tpu=true
+        kubernetes.io/os: linux

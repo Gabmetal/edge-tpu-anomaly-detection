@@ -1,0 +1,14 @@
+{
+  "model_name": "edge_tpu_anomaly_autoencoder",
+  "input_dimension": 32,
+  "latent_dimension": 8,
+  "quantization": "INT8",
+  "baseline_stats": {
+    "mean_mse": 0.000516,
+    "std_mse": 0.000324,
+    "suggested_threshold": 0.001806,
+    "percentile": 99.5
+  },
+  "threshold": 0.001806,
+  "architecture": "Dense(32)->Dense(16,relu)->Dense(8,relu)->Dense(16,relu)->Dense(32,sigmoid)"
+}

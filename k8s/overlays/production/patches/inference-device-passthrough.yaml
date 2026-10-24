@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-tpu-inference
+  namespace: anomaly-detection
+spec:
+  template:
+    spec:
+      containers:
+        - name: inference-service
+          resources:
+            limits:
+              cpu: 500m
+              memory: 384Mi
+              # Removed google.com/edgetpu in favor of direct hostPath device mount
+          volumeMounts:
+            - name: dev-bus-usb
+              mountPath: /dev/bus/usb
+      volumes:
+        - name: dev-bus-usb
+          hostPath:
+            path: /dev/bus/usb
+            type: Directory

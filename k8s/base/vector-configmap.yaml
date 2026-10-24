@@ -1,0 +1,305 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-config
+  namespace: anomaly-detection
+  labels:
+    app.kubernetes.io/name: vector
+    app.kubernetes.io/component: ingestion-agent
+data:
+  vector.yaml: |
+    data_dir: /var/lib/vector
+
+    sources:
+      openwrt_syslog_udp:
+        type: syslog
+        mode: udp
+        address: 0.0.0.0:514
+
+      openwrt_syslog_tcp:
+        type: syslog
+        mode: tcp
+        address: 0.0.0.0:514
+        max_length: 102400
+
+      softflowd_netflow:
+        type: socket
+        mode: udp
+        address: 0.0.0.0:2055
+        decoding:
+          codec: bytes
+
+      k8s_audit_logs:
+        type: file
+        include:
+          - /var/log/kubernetes/audit/*.log
+          - /var/log/k3s-audit/*.log
+        read_from: end
+        ignore_older_secs: 600
+
+    transforms:
+      parse_telemetry:
+        type: remap
+        inputs:
+          - openwrt_syslog_udp
+          - openwrt_syslog_tcp
+          - softflowd_netflow
+          - k8s_audit_logs
+        source: |
+          .telemetry_stream = "edge_tpu_anomaly_pipeline"
+          
+          .flow_bytes = 0
+          .flow_packets = 0
+          .flow_duration = 0.0
+          .flow_count = 0
+          .syn_count = 0
+          .fin_count = 0
+          .rst_count = 0
+          .tcp_flows = 0
+          .udp_flows = 0
+          .icmp_flows = 0
+          .src_ip = ""
+          .dst_ip = ""
+          .dst_port = ""
+          
+          .dns_queries = 0
+          .dns_nxdomain = 0
+          .adblock_drops = 0
+          .fw_rejects = 0
+          .fw_syn_drops = 0
+          .fw_outbound_drops = 0
+          
+          .k8s_requests = 0
+          .k8s_401 = 0
+          .k8s_403 = 0
+          .k8s_exec = 0
+          .k8s_escalate = 0
+          .k8s_anon = 0
+          .k8s_pod_churn = 0
+
+          if .source_type == "socket" || exists(.message) && starts_with(string!(.message), "{") && contains(string!(.message), "flow") {
+            parsed, err = parse_json(.message)
+            if err == null {
+              .flow_bytes = to_int(parsed.bytes) ?? 0
+              .flow_packets = to_int(parsed.pkts) ?? 1
+              .flow_duration = to_float(parsed.duration_ms) ?? 0.0
+              .flow_count = 1
+              
+              proto = to_string(parsed.protocol) ?? ""
+              if proto == "6" || proto == "TCP" {
+                .tcp_flows = 1
+                flags = to_string(parsed.tcp_flags) ?? ""
+                if contains(flags, "S") || contains(flags, "SYN") { .syn_count = 1 }
+                if contains(flags, "F") || contains(flags, "FIN") { .fin_count = 1 }
+                if contains(flags, "R") || contains(flags, "RST") { .rst_count = 1 }
+              } else if proto == "17" || proto == "UDP" {
+                .udp_flows = 1
+              } else if proto == "1" || proto == "ICMP" {
+                .icmp_flows = 1
+              }
+              
+              .src_ip = to_string(parsed.src_ip) ?? ""
+              .dst_ip = to_string(parsed.dst_ip) ?? ""
+              .dst_port = to_string(parsed.dst_port) ?? ""
+            }
+          }
+
+          if .source_type == "syslog" || exists(.appname) || exists(.facility) {
+            msg = string!(.message)
+            if contains(msg, "query[") || contains(msg, "dnsmasq") {
+              .dns_queries = 1
+              if contains(msg, "NXDOMAIN") || contains(msg, "nodata") || contains(msg, "config error") {
+                .dns_nxdomain = 1
+              }
+            }
+            if contains(msg, "adblock") || contains(msg, "AdBlock") || contains(msg, "blocked") {
+              .adblock_drops = 1
+            }
+            if contains(msg, "NFT-REJECT") || contains(msg, "DROP") || contains(msg, "REJECT") {
+              .fw_rejects = 1
+              if contains(msg, "SYN") && !contains(msg, "ACK") {
+                .fw_syn_drops = 1
+              }
+              if contains(msg, "OUT=wan") || contains(msg, "OUT=eth") {
+                .fw_outbound_drops = 1
+              }
+            }
+          }
+
+          if .source_type == "file" || contains(string!(.message), "audit.k8s.io") {
+            audit_event, err = parse_json(.message)
+            if err == null {
+              .k8s_requests = 1
+              code = to_int(audit_event.responseStatus.code) ?? 200
+              if code == 401 { .k8s_401 = 1 }
+              if code == 403 { .k8s_403 = 1 }
+              
+              user_name = to_string(audit_event.user.username) ?? ""
+              if user_name == "system:anonymous" {
+                .k8s_anon = 1
+              }
+              
+              res = to_string(audit_event.objectRef.resource) ?? ""
+              subres = to_string(audit_event.objectRef.subresource) ?? ""
+              verb = to_string(audit_event.verb) ?? ""
+              
+              if subres == "exec" || subres == "attach" || verb == "exec" {
+                .k8s_exec = 1
+              }
+              if contains(res, "roles") || contains(res, "rolebindings") || contains(res, "clusterroles") {
+                if verb == "create" || verb == "update" || verb == "patch" {
+                  .k8s_escalate = 1
+                }
+              }
+              if res == "pods" && (verb == "create" || verb == "delete") {
+                .k8s_pod_churn = 1
+              }
+            }
+          }
+
+      window_aggregate:
+        type: reduce
+        inputs:
+          - parse_telemetry
+        group_by:
+          - telemetry_stream
+        expire_after_ms: 10000
+        flush_period_ms: 10000
+        merge_strategies:
+          flow_bytes: sum
+          flow_packets: sum
+          flow_duration: sum
+          flow_count: sum
+          syn_count: sum
+          fin_count: sum
+          rst_count: sum
+          tcp_flows: sum
+          udp_flows: sum
+          icmp_flows: sum
+          src_ip: array
+          dst_ip: array
+          dst_port: array
+          dns_queries: sum
+          dns_nxdomain: sum
+          adblock_drops: sum
+          fw_rejects: sum
+          fw_syn_drops: sum
+          fw_outbound_drops: sum
+          k8s_requests: sum
+          k8s_401: sum
+          k8s_403: sum
+          k8s_exec: sum
+          k8s_escalate: sum
+          k8s_anon: sum
+          k8s_pod_churn: sum
+
+      format_vector_32d:
+        type: remap
+        inputs:
+          - window_aggregate
+        source: |
+          f_bytes = to_float(.flow_bytes) ?? 0.0
+          f_pkts = to_float(.flow_packets) ?? 0.0
+          f_dur = to_float(.flow_duration) ?? 0.0
+          f_flows = to_float(.flow_count) ?? 0.0
+          f_syn = to_float(.syn_count) ?? 0.0
+          f_fin = to_float(.fin_count) ?? 0.0
+          f_rst = to_float(.rst_count) ?? 0.0
+          f_tcp = to_float(.tcp_flows) ?? 0.0
+          f_udp = to_float(.udp_flows) ?? 0.0
+          f_icmp = to_float(.icmp_flows) ?? 0.0
+
+          src_list = if is_array(.src_ip) { .src_ip } else { [] }
+          dst_list = if is_array(.dst_ip) { .dst_ip } else { [] }
+          port_list = if is_array(.dst_port) { .dst_port } else { [] }
+          uniq_src = unique!(src_list)
+          uniq_dst = unique!(dst_list)
+          uniq_ports = unique!(port_list)
+          u_src = to_float(length(uniq_src))
+          u_dst = to_float(length(uniq_dst))
+          u_port = to_float(length(uniq_ports))
+
+          f_dns = to_float(.dns_queries) ?? 0.0
+          f_nx = to_float(.dns_nxdomain) ?? 0.0
+          f_adblock = to_float(.adblock_drops) ?? 0.0
+          f_fw_reject = to_float(.fw_rejects) ?? 0.0
+          f_fw_syn = to_float(.fw_syn_drops) ?? 0.0
+          f_fw_out = to_float(.fw_outbound_drops) ?? 0.0
+
+          f_k8s_req = to_float(.k8s_requests) ?? 0.0
+          f_k8s_401 = to_float(.k8s_401) ?? 0.0
+          f_k8s_403 = to_float(.k8s_403) ?? 0.0
+          f_k8s_exec = to_float(.k8s_exec) ?? 0.0
+          f_k8s_escalate = to_float(.k8s_escalate) ?? 0.0
+          f_k8s_anon = to_float(.k8s_anon) ?? 0.0
+          f_k8s_churn = to_float(.k8s_pod_churn) ?? 0.0
+
+          raw_features = [
+            f_bytes / 10000000.0,
+            f_pkts / 100000.0,
+            ((f_bytes / (f_pkts + 1.0)) ?? 0.0) / 1500.0,
+            ((f_dur / (f_flows + 1.0)) ?? 0.0) / 60.0,
+            f_syn / 10000.0,
+            f_fin / 10000.0,
+            f_rst / 5000.0,
+            ((f_syn / (f_fin + 1.0)) ?? 0.0) / 10.0,
+            (f_rst / (f_pkts + 1.0)) ?? 0.0,
+            (f_tcp / (f_flows + 1.0)) ?? 0.0,
+            (f_udp / (f_flows + 1.0)) ?? 0.0,
+            (f_icmp / (f_flows + 1.0)) ?? 0.0,
+            u_src / 256.0,
+            u_dst / 256.0,
+            u_port / 1000.0,
+            ((u_dst / (u_src + 1.0)) ?? 0.0) / 10.0,
+            f_dns / 1000.0,
+            f_nx / 100.0,
+            (f_nx / (f_dns + 1.0)) ?? 0.0,
+            f_adblock / 500.0,
+            (f_adblock / (f_dns + 1.0)) ?? 0.0,
+            f_fw_reject / 500.0,
+            f_fw_syn / 200.0,
+            f_fw_out / 100.0,
+            f_k8s_req / 1000.0,
+            f_k8s_401 / 50.0,
+            f_k8s_403 / 50.0,
+            ((f_k8s_401 + f_k8s_403) / (f_k8s_req + 1.0)) ?? 0.0,
+            f_k8s_exec / 20.0,
+            f_k8s_escalate / 10.0,
+            f_k8s_anon / 50.0,
+            f_k8s_churn / 20.0
+          ]
+
+          features_array = []
+          for_each(raw_features) -> |_idx, val| {
+            clamped = if val > 1.0 { 1.0 } else if val < 0.0 { 0.0 } else { val }
+            features_array = push(features_array, clamped)
+          }
+
+          . = {
+            "timestamp": format_timestamp!(now(), "%+"),
+            "window_seconds": 10,
+            "features": features_array,
+            "metadata": {
+              "source": "vector-ingestion-pipeline",
+              "cluster": "k3s-baremetal",
+              "raw_flow_count": f_flows,
+              "raw_dns_count": f_dns,
+              "raw_k8s_req_count": f_k8s_req
+            }
+          }
+
+    sinks:
+      inference_daemon:
+        type: http
+        inputs:
+          - format_vector_32d
+        uri: "http://inference-service.anomaly-detection.svc.cluster.local:8000/v1/predict"
+        method: post
+        encoding:
+          codec: json
+        request:
+          headers:
+            Content-Type: "application/json"
+        batch:
+          max_events: 1
+          timeout_secs: 1

@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-tpu-inference
+  namespace: anomaly-detection
+  labels:
+    app.kubernetes.io/name: edge-tpu-inference
+    app.kubernetes.io/component: inference-engine
+    app.kubernetes.io/part-of: edge-ml-infrastructure
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # Prevents device contention on single physical Edge TPU during rollouts
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: edge-tpu-inference
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: edge-tpu-inference
+        app.kubernetes.io/component: inference-engine
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        supplementalGroups:
+          - 46 # GID of host 'plugdev' group for Coral USB/Apex R/W access
+      containers:
+        - name: inference-service
+          image: localhost/edge-tpu-inference:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: MODEL_PATH
+              value: "/models/anomaly_autoencoder_edgetpu.tflite"
+            - name: CPU_FALLBACK_MODEL_PATH
+              value: "/models/anomaly_autoencoder_int8.tflite"
+            - name: METADATA_PATH
+              value: "/models/model_metadata.json"
+            - name: ANOMALY_THRESHOLD
+              value: "0.001806"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+              # If using Google Coral Device Plugin, request:
+              google.com/edgetpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
