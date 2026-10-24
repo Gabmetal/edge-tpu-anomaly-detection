@@ -1,0 +1,125 @@
+# Default values for edge-tpu-anomaly-detection.
+# This is a YAML-formatted file.
+
+global:
+  namespace: anomaly-detection
+
+# 1. Edge TPU Inference Microservice
+inference:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: localhost/edge-tpu-inference
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  hardware:
+    # Mode: "hostPath" (direct USB device mount, recommended for K3s edge single node)
+    # or "devicePlugin" (requests google.com/edgetpu: 1)
+    mode: hostPath
+    devicePath: /dev/bus/usb
+    groupGid: 46 # GID of the host 'plugdev' group
+  
+  config:
+    logLevel: info
+    anomalyThreshold: 0.001806
+    maxReconnectRetries: 5
+    reconnectBaseDelaySec: 1.0
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+# 2. Vector Telemetry Ingestion Agent (DaemonSet)
+vector:
+  enabled: true
+  image:
+    repository: docker.io/timberio/vector
+    tag: 0.38.0-debian
+    pullPolicy: IfNotPresent
+
+  service:
+    type: LoadBalancer # MetalLB / K3s Klipper; can be changed to NodePort
+    annotations: {}
+    syslogPort: 514
+    netflowPort: 2055
+
+  auditLogs:
+    enabled: true
+    hostPath: /var/log/kubernetes/audit
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 192Mi
+
+# 3. Google Coral Device Plugin (DaemonSet)
+devicePlugin:
+  # Enable if using Kubernetes Device Plugin API (google.com/edgetpu: 1)
+  enabled: false
+  image:
+    repository: ghcr.io/mgb/coral-device-plugin
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+# 4. Zero-Trust Network Policies
+networkPolicies:
+  enabled: true
+
+# 5. VictoriaMetrics Integration (operator.victoriametrics.com/v1beta1)
+victoriaMetrics:
+  enabled: true
+  serviceScrape:
+    enabled: true
+    interval: 10s
+    scrapeTimeout: 5s
+  vmRule:
+    enabled: true
+    highAnomalyMseThreshold: 0.045
+    evaluationDuration: 30s
+    latencyThresholdSeconds: 0.002
+
+# 6. Grafana Dashboard Auto-Import
+grafana:
+  dashboard:
+    enabled: true
+    # Namespace where Grafana sidecar is watching for dashboards (e.g. monitoring)
+    namespace: monitoring
+    labels:
+      grafana_dashboard: "1"
+
+# 7. Automated Mitigation Worker
+mitigation:
+  enabled: true
+  image:
+    repository: python
+    tag: 3.11-slim-bookworm
+    pullPolicy: IfNotPresent
+  port: 9095
+  openwrtHost: "" # Leave empty for local execution, or set e.g. "192.168.1.1"
+  quarantineTimeout: "3600s"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi

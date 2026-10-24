@@ -1,0 +1,103 @@
+{{- if .Values.inference.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-inference
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-engine
+spec:
+  replicas: {{ .Values.inference.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference-engine
+  template:
+    metadata:
+      labels:
+        {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: inference-engine
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.inference.service.port }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        supplementalGroups:
+          - {{ .Values.inference.hardware.groupGid }}
+      containers:
+        - name: inference-service
+          image: "{{ .Values.inference.image.repository }}:{{ .Values.inference.image.tag }}"
+          imagePullPolicy: {{ .Values.inference.image.pullPolicy }}
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "{{ .Values.inference.service.port }}"
+            - name: LOG_LEVEL
+              value: {{ .Values.inference.config.logLevel | quote }}
+            - name: MODEL_PATH
+              value: "/models/anomaly_autoencoder_edgetpu.tflite"
+            - name: CPU_FALLBACK_MODEL_PATH
+              value: "/models/anomaly_autoencoder_int8.tflite"
+            - name: METADATA_PATH
+              value: "/models/model_metadata.json"
+            - name: ANOMALY_THRESHOLD
+              value: {{ .Values.inference.config.anomalyThreshold | quote }}
+            - name: MAX_RECONNECT_RETRIES
+              value: {{ .Values.inference.config.maxReconnectRetries | quote }}
+            - name: RECONNECT_BASE_DELAY_SEC
+              value: {{ .Values.inference.config.reconnectBaseDelaySec | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.inference.service.port }}
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              {{- toYaml .Values.inference.resources.requests | nindent 14 }}
+            limits:
+              {{- toYaml .Values.inference.resources.limits | nindent 14 }}
+              {{- if eq .Values.inference.hardware.mode "devicePlugin" }}
+              google.com/edgetpu: "1"
+              {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          {{- if eq .Values.inference.hardware.mode "hostPath" }}
+          volumeMounts:
+            - name: dev-bus-usb
+              mountPath: {{ .Values.inference.hardware.devicePath }}
+          {{- end }}
+      {{- if eq .Values.inference.hardware.mode "hostPath" }}
+      volumes:
+        - name: dev-bus-usb
+          hostPath:
+            path: {{ .Values.inference.hardware.devicePath }}
+            type: Directory
+      {{- end }}
+{{- end }}

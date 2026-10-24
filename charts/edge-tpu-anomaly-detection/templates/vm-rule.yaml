@@ -1,0 +1,49 @@
+{{- if and .Values.victoriaMetrics.enabled .Values.victoriaMetrics.vmRule.enabled }}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-alerts
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alerting-rules
+spec:
+  groups:
+    - name: edge_tpu_anomaly_alerts
+      rules:
+        # Alert 1: Reconstruction Error Exceeds Calibrated Baseline Threshold
+        - alert: HighNetworkAnomalyScore
+          expr: anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.highAnomalyMseThreshold }}
+          for: {{ .Values.victoriaMetrics.vmRule.evaluationDuration }}
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+          annotations:
+            summary: "High Network/Cluster Anomaly Score Detected on Edge TPU"
+            description: "Autoencoder reconstruction error (MSE = {{ "{{" }} $value | printf \"%.5f\" {{ "}}" }}) exceeded baseline anomaly threshold for >{{ .Values.victoriaMetrics.vmRule.evaluationDuration }}."
+            runbook_url: "https://wiki.internal.net/runbooks/network-anomaly"
+
+        # Alert 2: Coral TPU Disconnected / Fallback Mode Active
+        - alert: EdgeTpuDeviceDisconnected
+          expr: edge_tpu_device_status == 0
+          for: 1m
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+          annotations:
+            summary: "Google Coral Edge TPU Hardware Disconnected"
+            description: "Physical Edge TPU accelerator is offline; inference microservice is operating in degraded CPU fallback mode."
+
+        # Alert 3: Inference Latency SLA Breach (>2ms on Edge TPU)
+        - alert: HighInferenceLatency
+          expr: (rate(edge_tpu_inference_latency_seconds_sum[1m]) / rate(edge_tpu_inference_latency_seconds_count[1m])) > {{ .Values.victoriaMetrics.vmRule.latencyThresholdSeconds }}
+          for: 2m
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+          annotations:
+            summary: "Edge TPU Inference Latency Exceeds SLA"
+            description: "Average inference latency is {{ "{{" }} $value | printf \"%.4f\" {{ "}}" }}s, exceeding the sub-millisecond edge requirement."
+{{- end }}

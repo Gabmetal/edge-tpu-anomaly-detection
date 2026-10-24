@@ -1,0 +1,102 @@
+{{- if .Values.networkPolicies.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-default-deny
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-vector
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: telemetry-pipeline
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: UDP
+          port: 514
+        - protocol: TCP
+          port: 514
+        - protocol: UDP
+          port: 2055
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: inference-engine
+      ports:
+        - protocol: TCP
+          port: {{ .Values.inference.service.port }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-inference
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference-engine
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: telemetry-pipeline
+      ports:
+        - protocol: TCP
+          port: {{ .Values.inference.service.port }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.inference.service.port }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

@@ -1,0 +1,16 @@
+{{- if .Values.grafana.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-grafana-dashboard
+  namespace: {{ .Values.grafana.dashboard.namespace }}
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana-dashboard
+    {{- with .Values.grafana.dashboard.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  edge-tpu-anomaly-dashboard.json: |-
+{{ .Files.Get "dashboards/edge-tpu-anomaly-dashboard.json" | indent 4 }}
+{{- end }}

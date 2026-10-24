@@ -1,0 +1,19 @@
+{{- if and .Values.victoriaMetrics.enabled .Values.victoriaMetrics.serviceScrape.enabled }}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-scrape
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-scrape
+spec:
+  selector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference-engine
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.victoriaMetrics.serviceScrape.interval | quote }}
+      scrapeTimeout: {{ .Values.victoriaMetrics.serviceScrape.scrapeTimeout | quote }}
+{{- end }}

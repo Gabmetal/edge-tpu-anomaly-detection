@@ -1,0 +1,115 @@
+{{- if .Values.mitigation.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-scripts
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: automated-mitigation
+data:
+  alertmanager-webhook.py: |-
+{{ .Files.Get "mitigation/alertmanager-webhook.py" | indent 4 }}
+  openwrt-nftables-quarantine.sh: |-
+{{ .Files.Get "mitigation/openwrt-nftables-quarantine.sh" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-worker
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: automated-mitigation
+spec:
+  replicas: {{ .Values.mitigation.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: automated-mitigation
+  template:
+    metadata:
+      labels:
+        {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: automated-mitigation
+    spec:
+      serviceAccountName: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation
+      containers:
+        - name: mitigation-worker
+          image: "{{ .Values.mitigation.image.repository }}:{{ .Values.mitigation.image.tag }}"
+          imagePullPolicy: {{ .Values.mitigation.image.pullPolicy }}
+          command:
+            - python3
+            - /scripts/alertmanager-webhook.py
+          env:
+            - name: PORT
+              value: "{{ .Values.mitigation.port }}"
+            - name: OPENWRT_HOST
+              value: {{ .Values.mitigation.openwrtHost | quote }}
+          ports:
+            - name: webhook
+              containerPort: {{ .Values.mitigation.port }}
+              protocol: TCP
+          resources:
+            requests:
+              {{- toYaml .Values.mitigation.resources.requests | nindent 14 }}
+            limits:
+              {{- toYaml .Values.mitigation.resources.limits | nindent 14 }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-scripts
+            defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: automated-mitigation
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: automated-mitigation
+  ports:
+    - name: webhook
+      port: {{ .Values.mitigation.port }}
+      targetPort: webhook
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-role
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-binding
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-mitigation
+    namespace: {{ .Release.Namespace }}
+{{- end }}

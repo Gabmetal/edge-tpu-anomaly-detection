@@ -217,38 +217,63 @@ The hardened Python service runs non-root under UID `10001:46` (`appuser:plugdev
 
 ---
 
-## 8. Deployment via Kustomize (GitOps)
+## 8. Deployment Options
 
-### 8.1 Base Deployment (Device Plugin Mode)
+### 8.1 Option A: Helm Package Deployment (Recommended)
+The system is packaged as a standard Helm chart with full parameterization for VictoriaMetrics, Grafana, and Coral device configuration:
+
 ```bash
-# Preview manifests
-kubectl kustomize k8s/base
+# Lint the chart
+helm lint charts/edge-tpu-anomaly-detection
 
-# Deploy to cluster
+# Dry-run template generation
+helm template anomaly-detector charts/edge-tpu-anomaly-detection -n anomaly-detection
+
+# Install into K3s cluster
+helm install anomaly-detector charts/edge-tpu-anomaly-detection \
+  --namespace anomaly-detection \
+  --create-namespace \
+  --set inference.hardware.mode=hostPath \
+  --set inference.hardware.groupGid=46
+
+# Or package chart artifact
+helm package charts/edge-tpu-anomaly-detection -d charts/
+```
+
+### 8.2 Option B: Kustomize Deployment (GitOps)
+```bash
+# Base deployment (with Coral Device Plugin)
 kubectl apply -k k8s/base
-```
 
-### 8.2 Production Overlay (Direct Host Device Passthrough)
-For bare-metal single-node K3s deployments with direct `/dev/bus/usb` passthrough:
-```bash
+# Production overlay (direct hostPath /dev/bus/usb passthrough)
 kubectl apply -k k8s/overlays/production
-```
-
-### 8.3 Verify Deployment
-```bash
-# Check running pods in anomaly-detection namespace
-kubectl get pods -n anomaly-detection -o wide
-
-# Check services
-kubectl get svc -n anomaly-detection
-
-# Test inference service health
-kubectl exec -n anomaly-detection deploy/edge-tpu-inference -- curl -s http://localhost:8000/healthz
 ```
 
 ---
 
-## 9. Automated Mitigation Worker
+## 9. Observability: VictoriaMetrics & Grafana Dashboard
+
+### 9.1 VictoriaMetrics Integration
+The repository integrates natively with the VictoriaMetrics Operator (`operator.victoriametrics.com/v1beta1`):
+* **`VMServiceScrape` (`edge-tpu-inference-scrape`):** Scrapes the inference daemon metrics endpoint on port 8000 every 10 seconds.
+* **`VMRule` (`edge-tpu-anomaly-vmrules`):** Evaluates anomaly conditions via `vmalert`:
+  * `HighNetworkAnomalyScore`: $MSE > 0.045$ for $>30\text{ seconds}$.
+  * `EdgeTpuDeviceDisconnected`: fires if `edge_tpu_device_status == 0` for $>1\text{ minute}$.
+  * `HighInferenceLatency`: fires if average latency breaches the 2.0ms SLA for $>2\text{ minutes}$.
+
+### 9.2 Grafana Dashboard
+A production Grafana dashboard is included at [`dashboards/edge-tpu-anomaly-dashboard.json`](file:///home/gabo/Documents/antigravity/serene-einstein/dashboards/edge-tpu-anomaly-dashboard.json). It is automatically provisioned via a labeled ConfigMap (`grafana_dashboard: "1"`) watched by the Grafana sidecar in the `monitoring` namespace.
+
+**Dashboard Panels:**
+1. **Edge TPU Hardware Status (Stat):** Visualizes hardware state (`ONLINE (libedgetpu)` in green vs `OFFLINE / CPU FALLBACK` in red).
+2. **Reconstruction MSE (Stat & Time Series):** Live autoencoder reconstruction error against the decision threshold cutoff.
+3. **Hardware Inference Latency (Time Series):** Tracks $P_{50}, P_{90}, P_{99}$ latency quantiles with a reference threshold line at the $2.0\text{ ms}$ SLA.
+4. **Top Root-Cause Feature Residuals (Bar Gauge):** Displays the highest squared residual dimensions $(x_i - \hat{x}_i)^2$, identifying whether the anomaly stems from SYN drops, DNS tunneling, port sweeps, or RBAC probes.
+5. **Evaluation Rate (Time Series):** Throughput of normal vs anomalous windows evaluated per second.
+
+---
+
+## 10. Automated Mitigation Worker
 
 The mitigation worker (`mitigation/alertmanager-webhook.py`) listens on port 9095 for Prometheus Alertmanager alerts.
 
@@ -261,7 +286,7 @@ When `HighNetworkAnomalyScore` fires for $>30\text{ seconds}$:
 
 ---
 
-## 10. Telemetry Simulation & Testing
+## 11. Telemetry Simulation & Testing
 
 To validate the end-to-end pipeline against simulated cyber attacks:
 

@@ -1,0 +1,31 @@
+{{- if .Values.vector.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-vector-ingress
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress
+  {{- with .Values.vector.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.vector.service.type }}
+  selector:
+    {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: telemetry-pipeline
+  ports:
+    - name: syslog-udp
+      port: {{ .Values.vector.service.syslogPort }}
+      targetPort: 514
+      protocol: UDP
+    - name: syslog-tcp
+      port: {{ .Values.vector.service.syslogPort }}
+      targetPort: 514
+      protocol: TCP
+    - name: netflow-udp
+      port: {{ .Values.vector.service.netflowPort }}
+      targetPort: 2055
+      protocol: UDP
+{{- end }}

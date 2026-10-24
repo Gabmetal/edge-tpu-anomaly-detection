@@ -12,6 +12,9 @@ resources:
   - inference-deployment.yaml
   - inference-service.yaml
   - prometheus-rules.yaml
+  - vm-servicescrape.yaml
+  - vm-rule.yaml
+  - grafana-dashboard-configmap.yaml
   - network-policies.yaml
 
 labels:

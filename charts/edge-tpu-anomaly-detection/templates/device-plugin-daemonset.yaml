@@ -1,0 +1,57 @@
+{{- if .Values.devicePlugin.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-device-plugin
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: device-plugin
+spec:
+  selector:
+    matchLabels:
+      {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: device-plugin
+  template:
+    metadata:
+      labels:
+        {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: device-plugin
+    spec:
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      containers:
+        - name: coral-device-plugin
+          image: "{{ .Values.devicePlugin.image.repository }}:{{ .Values.devicePlugin.image.tag }}"
+          imagePullPolicy: {{ .Values.devicePlugin.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              {{- toYaml .Values.devicePlugin.resources.requests | nindent 14 }}
+            limits:
+              {{- toYaml .Values.devicePlugin.resources.limits | nindent 14 }}
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: dev-bus-usb
+              mountPath: /dev/bus/usb
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: dev-bus-usb
+          hostPath:
+            path: /dev/bus/usb
+            type: Directory
+{{- end }}

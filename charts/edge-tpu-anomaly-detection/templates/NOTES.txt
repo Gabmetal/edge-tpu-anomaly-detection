@@ -1,0 +1,18 @@
+Thank you for installing {{ .Chart.Name }}!
+
+1. Check Edge TPU Inference Deployment:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/component=inference-engine -o wide
+
+2. Check Vector Ingestion Agent:
+   kubectl get daemonset -n {{ .Release.Namespace }} -l app.kubernetes.io/component=telemetry-pipeline
+
+3. Ingress Telemetry Service (OpenWrt target):
+   kubectl get svc -n {{ .Release.Namespace }} -l app.kubernetes.io/component=ingress
+
+4. VictoriaMetrics Metrics Scraping & Alerts:
+   kubectl get vmservicescrape -n {{ .Release.Namespace }}
+   kubectl get vmrule -n {{ .Release.Namespace }}
+
+5. Grafana Dashboard:
+   The Grafana dashboard has been provisioned as a ConfigMap in namespace '{{ .Values.grafana.dashboard.namespace }}' with label 'grafana_dashboard: "1"'.
+   Open Grafana and search for 'Edge TPU Network & Cluster Anomaly Detection'.

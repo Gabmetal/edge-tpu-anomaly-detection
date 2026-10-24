@@ -1,0 +1,19 @@
+{{- if .Values.inference.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-inference
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-engine
+spec:
+  type: {{ .Values.inference.service.type }}
+  selector:
+    {{- include "edge-tpu-anomaly-detection.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-engine
+  ports:
+    - name: http
+      port: {{ .Values.inference.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}

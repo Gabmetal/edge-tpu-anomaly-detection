@@ -1,0 +1,18 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: edge-tpu-inference-scrape
+  namespace: anomaly-detection
+  labels:
+    app.kubernetes.io/name: edge-tpu-inference
+    app.kubernetes.io/component: metrics-scrape
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: edge-tpu-inference
+      app.kubernetes.io/component: inference-engine
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s
+      scrapeTimeout: 5s

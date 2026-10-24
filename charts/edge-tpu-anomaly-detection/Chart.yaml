@@ -1,0 +1,18 @@
+apiVersion: v2
+name: edge-tpu-anomaly-detection
+description: Production Edge TPU-Accelerated Network & Cluster Anomaly Detection System on K3s with VictoriaMetrics & Grafana
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - edge-tpu
+  - google-coral
+  - anomaly-detection
+  - k3s
+  - machine-learning
+  - vector
+  - victoriametrics
+  - grafana
+maintainers:
+  - name: Gabmetal
+    url: https://github.com/Gabmetal
