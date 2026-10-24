@@ -54,6 +54,13 @@ def get_dashboard_html() -> str:
     .animate-pulse-subtle {
       animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
+    @keyframes spin-reverse {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-360deg); }
+    }
+    .animate-spin-reverse {
+      animation: spin-reverse 3s linear infinite;
+    }
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -127,7 +134,7 @@ def get_dashboard_html() -> str:
 
           <!-- Live Refresh / Polling Button -->
           <button id="poll-toggle-btn" onclick="togglePolling()" title="Pause or Resume Live Polling" class="p-2 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white transition">
-            <svg id="poll-icon" class="h-4 w-4 text-emerald-400 animate-spin" style="animation-duration: 4s;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg id="poll-icon" class="h-4 w-4 text-emerald-400 animate-spin-reverse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
@@ -604,13 +611,13 @@ def get_dashboard_html() -> str:
       isPolling = !isPolling;
       const icon = document.getElementById('poll-icon');
       if (isPolling) {
-        icon.classList.add('animate-spin');
+        icon.classList.add('animate-spin-reverse');
         icon.classList.remove('text-slate-500');
         icon.classList.add('text-emerald-400');
         updateStatus();
         fetchEvents();
       } else {
-        icon.classList.remove('animate-spin');
+        icon.classList.remove('animate-spin-reverse');
         icon.classList.remove('text-emerald-400');
         icon.classList.add('text-slate-500');
       }
