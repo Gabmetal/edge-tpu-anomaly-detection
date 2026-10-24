@@ -8,9 +8,11 @@ import logging
 import time
 from typing import Dict, List, Union
 from fastapi import FastAPI, HTTPException, Response, status
+from fastapi.responses import HTMLResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.config import settings
+from app.dashboard import get_dashboard_html
 from app.engine import engine
 from app.schemas import (
     BatchPredictionResponse,
@@ -51,6 +53,13 @@ app = FastAPI(
     description="Sub-millisecond INT8 Autoencoder Anomaly Detection on Google Coral Edge TPU",
     lifespan=lifespan,
 )
+
+
+@app.get("/", response_class=HTMLResponse, tags=["Dashboard"])
+@app.get("/ui", response_class=HTMLResponse, tags=["Dashboard"])
+async def dashboard():
+    """Cyber SOC Interactive Dashboard for Edge TPU Anomaly Detection."""
+    return HTMLResponse(content=get_dashboard_html(), status_code=status.HTTP_200_OK)
 
 
 @app.get("/healthz", status_code=status.HTTP_200_OK, tags=["Probes"])

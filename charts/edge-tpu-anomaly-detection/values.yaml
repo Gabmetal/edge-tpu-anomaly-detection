@@ -39,6 +39,19 @@ inference:
     type: ClusterIP
     port: 8000
 
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    host: anomaly.gabo.lat
+    tls:
+      - secretName: anomaly-tls
+        hosts:
+          - anomaly.gabo.lat
+
 # 2. Vector Telemetry Ingestion Agent (DaemonSet)
 vector:
   enabled: true

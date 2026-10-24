@@ -1,0 +1,30 @@
+{{- if .Values.inference.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-ingress
+  labels:
+    {{- include "edge-tpu-anomaly-detection.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cyber-soc-ui
+  {{- with .Values.inference.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.inference.ingress.className | default "traefik" }}
+  {{- if .Values.inference.ingress.tls }}
+  tls:
+    {{- toYaml .Values.inference.ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.inference.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "edge-tpu-anomaly-detection.fullname" . }}-inference
+                port:
+                  number: {{ .Values.inference.service.port }}
+{{- end }}
