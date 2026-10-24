@@ -2,14 +2,16 @@
 dashboard.py
 Embedded Cyber SOC Dashboard for Edge TPU Anomaly Detection Microservice.
 Served directly as modern responsive single-page application at '/' and '/ui'.
+Optimized with mobile-first responsive layout, touch-friendly navigation,
+and live hardware observability.
 """
 
 def get_dashboard_html() -> str:
     return """<!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark scroll-smooth">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Edge TPU Anomaly Detection SOC</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2306b6d4'><circle cx='12' cy='12' r='10'/></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -28,7 +30,9 @@ def get_dashboard_html() -> str:
               900: '#164e63',
             },
             surface: {
+              700: '#334155',
               800: '#1e293b',
+              850: '#172033',
               900: '#0f172a',
               950: '#020617'
             }
@@ -45,293 +49,464 @@ def get_dashboard_html() -> str:
     .animate-pulse-subtle {
       animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
+    /* Custom scrollbar for sleeker dark-mode look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #020617;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
   </style>
 </head>
 <body class="bg-surface-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- Top Navigation Bar -->
-  <header class="border-b border-slate-800 bg-surface-900/80 backdrop-blur sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="h-9 w-9 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
-        <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      </div>
-      <div>
-        <div class="flex items-center space-x-2">
-          <h1 class="text-base font-bold tracking-tight text-white">Edge TPU Cyber SOC</h1>
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800" id="tpu-pill">
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-            Coral TPU Active
-          </span>
+  <!-- Top Sticky Navigation Bar -->
+  <header class="border-b border-slate-800/80 bg-surface-950/85 backdrop-blur-md sticky top-0 z-50 transition-all duration-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Left: Logo & Branding -->
+        <div class="flex items-center space-x-3 min-w-0">
+          <a href="#" class="flex items-center space-x-3 group">
+            <div class="h-9 w-9 rounded-lg bg-gradient-to-tr from-brand-600 via-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20 group-hover:scale-105 transition-transform shrink-0">
+              <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div class="truncate">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm sm:text-base font-bold tracking-tight text-white group-hover:text-brand-400 transition-colors">Edge TPU SOC</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 shrink-0" id="tpu-pill">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+                  <span class="hidden xs:inline">Coral </span>Active
+                </span>
+              </div>
+              <p class="hidden sm:block text-[11px] text-slate-400 truncate">K3s Bare-Metal &bull; Sub-ms INT8 Neural Defense</p>
+            </div>
+          </a>
         </div>
-        <p class="text-xs text-slate-400">Homelab K3s &bull; Bare-Metal Anomaly Detection &bull; OpenWrt Telemetry</p>
+
+        <!-- Center: Desktop Navigation Anchor Links -->
+        <nav class="hidden lg:flex items-center space-x-1 bg-surface-900/60 p-1 rounded-xl border border-slate-800/80 text-xs font-medium text-slate-300">
+          <a href="#overview" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Overview</a>
+          <a href="#metrics" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Live MSE & Residuals</a>
+          <a href="#simulator" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Attack Simulator</a>
+          <a href="#infrastructure" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-surface-800 transition">Nodes & Quarantine</a>
+        </nav>
+
+        <!-- Right: Telemetry Badges & Action Buttons -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          
+          <!-- Live Telemetry Stats (Desktop / Tablet) -->
+          <div class="hidden md:flex items-center space-x-2 text-xs">
+            <div class="flex items-center space-x-1.5 bg-surface-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400 text-[11px]">Threshold:</span>
+              <span class="font-mono text-brand-400 font-semibold text-[11px]" id="top-threshold">0.001806</span>
+            </div>
+            <div class="flex items-center space-x-1.5 bg-surface-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400 text-[11px]">Latency:</span>
+              <span class="font-mono text-emerald-400 font-bold text-[11px]" id="top-latency">0.38 ms</span>
+            </div>
+          </div>
+
+          <!-- Live Refresh / Polling Button -->
+          <button id="poll-toggle-btn" onclick="togglePolling()" title="Pause or Resume Live Polling" class="p-2 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white transition">
+            <svg id="poll-icon" class="h-4 w-4 text-emerald-400 animate-spin" style="animation-duration: 4s;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+
+          <!-- External Links -->
+          <div class="hidden sm:flex items-center space-x-1.5 text-xs">
+            <a href="/docs" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white transition">API Docs</a>
+            <a href="https://grafana.gabo.lat" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-800/60 text-indigo-300 hover:text-white transition flex items-center space-x-1">
+              <span>Grafana</span>
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+          </div>
+
+          <!-- Mobile Hamburger Toggle Button -->
+          <button type="button" onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg bg-surface-900 hover:bg-surface-800 border border-slate-800 text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" aria-label="Toggle navigation">
+            <svg id="hamburger-icon" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <svg id="close-icon" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+        </div>
+
       </div>
     </div>
 
-    <!-- Quick Status Badges -->
-    <div class="flex items-center space-x-3 text-xs">
-      <div class="hidden sm:flex items-center space-x-2 bg-surface-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
-        <span class="text-slate-400">Threshold:</span>
-        <span class="font-mono text-brand-400 font-semibold" id="top-threshold">0.001806</span>
+    <!-- Mobile Collapsible Menu Drawer -->
+    <div id="mobile-menu" class="hidden lg:hidden border-b border-slate-800/80 bg-surface-900/95 backdrop-blur-xl px-4 pt-3 pb-5 space-y-3">
+      
+      <!-- Mobile Nav Links -->
+      <nav class="grid grid-cols-2 gap-2 text-xs font-medium text-slate-300">
+        <a href="#overview" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2">
+          <svg class="h-4 w-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          <span>Overview</span>
+        </a>
+        <a href="#metrics" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2">
+          <svg class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+          <span>Live MSE</span>
+        </a>
+        <a href="#simulator" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2">
+          <svg class="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          <span>Simulator</span>
+        </a>
+        <a href="#infrastructure" onclick="toggleMobileMenu()" class="p-2.5 rounded-lg bg-surface-800 hover:bg-slate-700/80 flex items-center space-x-2">
+          <svg class="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+          <span>Nodes</span>
+        </a>
+      </nav>
+
+      <!-- Mobile Quick Stats Cards -->
+      <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+        <div class="bg-surface-950 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 text-[10px] block">Threshold</span>
+          <span class="font-mono text-brand-400 font-semibold text-xs" id="mob-threshold">0.001806</span>
+        </div>
+        <div class="bg-surface-950 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 text-[10px] block">TPU Latency</span>
+          <span class="font-mono text-emerald-400 font-bold text-xs" id="mob-latency">0.38 ms</span>
+        </div>
       </div>
-      <div class="flex items-center space-x-2 bg-surface-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
-        <span class="text-slate-400">Last Latency:</span>
-        <span class="font-mono text-emerald-400 font-bold" id="top-latency">0.38 ms</span>
+
+      <!-- Mobile Action Buttons -->
+      <div class="flex items-center space-x-2 pt-1 text-xs">
+        <a href="/docs" target="_blank" class="flex-1 text-center py-2 rounded-lg bg-surface-800 hover:bg-slate-700 border border-slate-700 text-slate-200">
+          API Swagger
+        </a>
+        <a href="https://grafana.gabo.lat" target="_blank" class="flex-1 text-center py-2 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800 text-indigo-200 flex items-center justify-center space-x-1">
+          <span>Grafana</span>
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
       </div>
-      <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition">Swagger API</a>
-      <a href="https://grafana.gabo.lat" target="_blank" class="px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/60 text-indigo-300 hover:text-white transition flex items-center space-x-1">
-        <span>Grafana</span>
-        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-      </a>
+
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+  <!-- Main Body Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 sm:space-y-8">
 
     <!-- Anomaly Alert Banner (Conditional) -->
-    <div id="alert-banner" class="hidden rounded-xl border border-rose-500/40 bg-rose-950/40 p-4 backdrop-blur shadow-lg shadow-rose-950/40 flex items-start space-x-4">
-      <div class="h-10 w-10 rounded-lg bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0">
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-      </div>
-      <div class="flex-1">
-        <h3 class="text-sm font-bold text-rose-300 uppercase tracking-wide">Anomaly Detected &bull; Reconstruction Loss Breach</h3>
-        <p class="text-xs text-rose-200/80 mt-0.5" id="alert-detail">Latest 10-second telemetry window yielded an autoencoder MSE loss significantly above normal operational baseline.</p>
-      </div>
-      <div class="text-right">
-        <span class="inline-block px-2.5 py-1 rounded bg-rose-500/20 text-rose-300 font-mono text-xs font-bold border border-rose-500/30" id="alert-mse-value">MSE: 0.0450</span>
-      </div>
-    </div>
-
-    <!-- Top KPI Cards Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      
-      <!-- Card 1: Live MSE -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>Reconstruction Error</span>
-          <span class="font-mono text-[10px] text-slate-500">MSE Loss</span>
+    <div id="alert-banner" class="hidden rounded-xl border border-rose-500/50 bg-rose-950/50 p-4 sm:p-5 backdrop-blur-md shadow-xl shadow-rose-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-start space-x-3 sm:space-x-4">
+        <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0">
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
         </div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span class="text-2xl font-bold font-mono text-emerald-400" id="card-mse">0.00052</span>
-          <span class="text-xs text-slate-500 font-mono">/ <span id="card-threshold">0.00180</span></span>
-        </div>
-        <div class="mt-3 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-          <div id="card-mse-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-300" style="width: 25%"></div>
-        </div>
-        <div class="mt-2 text-[11px] text-slate-400 flex justify-between">
-          <span>Status: <span id="card-status-text" class="text-emerald-400 font-medium">Nominal</span></span>
-          <span id="card-status-percent" class="font-mono text-slate-500">28% of threshold</span>
-        </div>
-      </div>
-
-      <!-- Card 2: TPU Accelerator Latency -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>Hardware Execution Time</span>
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-brand-950 text-brand-400 border border-brand-800">SLA &lt; 2ms</span>
-        </div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span class="text-2xl font-bold font-mono text-brand-400" id="card-latency">0.38</span>
-          <span class="text-xs text-slate-400">ms / eval</span>
-        </div>
-        <div class="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
-          <span>Accelerator: <span class="text-slate-300 font-mono" id="card-device">Google Coral USB</span></span>
-          <span class="text-emerald-400 font-mono text-[10px]">INT8 Systolic</span>
-        </div>
-      </div>
-
-      <!-- Card 3: Inferences Count -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>Total Inferences</span>
-          <span class="text-[10px] text-slate-500">10s Windows</span>
-        </div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span class="text-2xl font-bold font-mono text-white" id="card-inferences">0</span>
-          <span class="text-xs text-slate-400">evals</span>
-        </div>
-        <div class="mt-3 text-[11px] text-slate-400 flex justify-between">
-          <span>Anomalies Flagged:</span>
-          <span class="font-mono text-rose-400 font-bold" id="card-anomalies-count">0</span>
-        </div>
-      </div>
-
-      <!-- Card 4: OpenWrt & K8s Pipeline -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>Telemetry Ingress</span>
-          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        </div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span class="text-sm font-semibold text-slate-200">Vector MetalLB VIP</span>
-        </div>
-        <div class="mt-1 font-mono text-xs text-brand-400">192.168.0.52</div>
-        <div class="mt-2 text-[11px] text-slate-400 flex justify-between">
-          <span>Syslog: 514 UDP</span>
-          <span>NetFlow: 2055 UDP</span>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Chart: Live MSE Rolling Window -->
-      <div class="lg:col-span-2 bg-surface-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-sm font-bold text-white tracking-wide">Live Autoencoder Reconstruction Error (MSE)</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Sliding telemetry window evaluation against baseline calibration</p>
-          </div>
-          <span class="px-2 py-1 bg-slate-800 rounded text-xs font-mono text-slate-300">Live (3s update)</span>
-        </div>
-        <div class="h-64 relative">
-          <canvas id="mseChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Chart: 32-D Feature Residual Breakdown -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-sm font-bold text-white tracking-wide">Top Feature Residuals</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Root-cause contribution $(x_i - \hat{x}_i)^2$</p>
-          </div>
-        </div>
-        <div class="h-64 relative">
-          <canvas id="residualChart"></canvas>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Interactive Attack Injection & Diagnostic Workbench -->
-    <div class="bg-surface-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4 mb-4">
         <div>
-          <h2 class="text-sm font-bold text-white tracking-wide">Interactive Telemetry & Attack Simulation</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Send test vectors directly into the Edge TPU neural inference loop to verify detection & alerts</p>
+          <div class="flex items-center space-x-2">
+            <h3 class="text-sm sm:text-base font-bold text-rose-300 uppercase tracking-wide">Anomaly Threshold Breach</h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500 text-white uppercase animate-pulse">Critical</span>
+          </div>
+          <p class="text-xs text-rose-200/90 mt-1" id="alert-detail">Latest 10-second telemetry window yielded an autoencoder reconstruction loss significantly higher than normal baseline.</p>
+        </div>
+      </div>
+      <div class="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-rose-900/50 pt-3 sm:pt-0">
+        <span class="text-xs text-rose-300/80 sm:hidden">Loss Value:</span>
+        <span class="px-3 py-1 rounded-lg bg-rose-500/30 text-rose-200 font-mono text-sm font-bold border border-rose-500/40" id="alert-mse-value">MSE: 0.0450</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Overview KPIs Grid -->
+    <section id="overview" class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">System Telemetry & Acceleration</h2>
+        <span class="text-[11px] text-slate-500 font-mono" id="last-updated-text">Updated just now</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Card 1: Live MSE -->
+        <div class="bg-surface-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>Reconstruction Error</span>
+            <span class="font-mono text-[10px] text-slate-500">MSE Loss</span>
+          </div>
+          <div class="mt-3 flex items-baseline space-x-2">
+            <span class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400 tracking-tight" id="card-mse">0.00052</span>
+            <span class="text-xs text-slate-500 font-mono">/ <span id="card-threshold">0.00180</span></span>
+          </div>
+          <div class="mt-4 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+            <div id="card-mse-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-300" style="width: 28%"></div>
+          </div>
+          <div class="mt-2.5 text-[11px] text-slate-400 flex justify-between">
+            <span>Status: <span id="card-status-text" class="text-emerald-400 font-medium">Nominal</span></span>
+            <span id="card-status-percent" class="font-mono text-slate-500">28% of threshold</span>
+          </div>
+        </div>
+
+        <!-- Card 2: TPU Latency -->
+        <div class="bg-surface-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>Hardware Execution</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-brand-950 text-brand-400 border border-brand-800">SLA &lt; 2ms</span>
+          </div>
+          <div class="mt-3 flex items-baseline space-x-2">
+            <span class="text-2xl sm:text-3xl font-bold font-mono text-brand-400 tracking-tight" id="card-latency">0.38</span>
+            <span class="text-xs text-slate-400">ms / eval</span>
+          </div>
+          <div class="mt-4 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Core: <span class="text-slate-300 font-mono" id="card-device">Google Coral USB</span></span>
+            <span class="text-emerald-400 font-mono text-[10px]">INT8 Systolic</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Inferences Count -->
+        <div class="bg-surface-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>Total Inferences</span>
+            <span class="text-[10px] text-slate-500 font-mono">10s Windows</span>
+          </div>
+          <div class="mt-3 flex items-baseline space-x-2">
+            <span class="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight" id="card-inferences">0</span>
+            <span class="text-xs text-slate-400">evals</span>
+          </div>
+          <div class="mt-4 text-[11px] text-slate-400 flex justify-between">
+            <span>Anomalies Flagged:</span>
+            <span class="font-mono text-rose-400 font-bold" id="card-anomalies-count">0</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Ingress Pipeline -->
+        <div class="bg-surface-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>Telemetry Ingress</span>
+            <span class="flex items-center space-x-1">
+              <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-[10px] text-emerald-400 font-mono">Vector VIP</span>
+            </span>
+          </div>
+          <div class="mt-3 flex items-baseline space-x-2">
+            <span class="text-xl sm:text-2xl font-bold font-mono text-slate-100">192.168.0.52</span>
+          </div>
+          <div class="mt-4 text-[11px] text-slate-400 flex justify-between">
+            <span>Syslog UDP :514</span>
+            <span>NetFlow UDP :2055</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section 2: Charts (Live MSE & Feature Residuals) -->
+    <section id="metrics" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Neural Evaluation & Residual Breakdown</h2>
+        <span class="text-[11px] text-slate-500 font-mono">Real-time Autoencoder Stream</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Live MSE Rolling Window Chart -->
+        <div class="lg:col-span-2 bg-surface-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-white tracking-wide">Live Reconstruction Error (MSE)</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Continuous 10-second tumbling vector evaluation vs calibrated threshold</p>
+            </div>
+            <div class="flex items-center space-x-2 self-start sm:self-auto">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">3s Interval</span>
+            </div>
+          </div>
+          <div class="h-60 sm:h-72 relative">
+            <canvas id="mseChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 32-D Feature Residual Breakdown Chart -->
+        <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-white tracking-wide">Top Feature Residuals</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Root-cause contribution $(x_i - \hat{x}_i)^2$</p>
+              </div>
+            </div>
+            <div class="h-60 sm:h-72 relative">
+              <canvas id="residualChart"></canvas>
+            </div>
+          </div>
+          <p class="text-[10px] text-slate-500 text-center mt-2 font-mono">Top anomalous vector dimensions</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section 3: Interactive Attack Simulator Workbench -->
+    <section id="simulator" class="bg-surface-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h3 class="text-sm sm:text-base font-bold text-white tracking-wide">Interactive Attack Injection & Diagnostics</h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">Testbench</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Inject synthetic network patterns directly into the Edge TPU neural inference loop to verify detection & mitigations</p>
         </div>
         <div class="text-xs text-slate-500 font-mono">
-          Endpoint: <code class="text-slate-300">POST /v1/predict</code>
+          Route: <code class="text-slate-300">POST /v1/predict</code>
         </div>
       </div>
 
+      <!-- Action Buttons Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        
         <!-- Button 1: Normal Baseline -->
-        <button onclick="injectScenario('normal')" class="p-3 bg-surface-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex flex-col justify-between group">
+        <button onclick="injectScenario('normal')" class="p-3.5 bg-surface-850 hover:bg-slate-700/80 active:scale-[0.98] border border-slate-700 rounded-xl text-left transition flex flex-col justify-between group shadow-sm">
           <div class="flex items-center justify-between w-full">
             <span class="text-xs font-bold text-emerald-400">Normal Baseline</span>
-            <span class="text-[10px] px-1.5 py-0.5 bg-emerald-950/60 border border-emerald-800 rounded text-emerald-300">Clean</span>
+            <span class="text-[10px] px-1.5 py-0.5 bg-emerald-950/80 border border-emerald-800 rounded text-emerald-300 font-medium">Clean</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">Simulates typical network flow, DNS queries, and cluster activity.</p>
-          <span class="text-[10px] text-brand-400 font-mono mt-3 block group-hover:underline">&rarr; Inject Vector</span>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">Typical flow rates, normal DNS resolution, nominal cluster traffic.</p>
+          <span class="text-[11px] text-brand-400 font-mono mt-3 block group-hover:translate-x-0.5 transition-transform">&rarr; Inject Clean Vector</span>
         </button>
 
-        <!-- Button 2: SYN Flood Attack -->
-        <button onclick="injectScenario('syn_flood')" class="p-3 bg-surface-800 hover:bg-rose-950/40 border border-rose-900/50 hover:border-rose-600 rounded-lg text-left transition flex flex-col justify-between group">
+        <!-- Button 2: SYN Flood -->
+        <button onclick="injectScenario('syn_flood')" class="p-3.5 bg-surface-850 hover:bg-rose-950/40 active:scale-[0.98] border border-rose-900/60 hover:border-rose-600 rounded-xl text-left transition flex flex-col justify-between group shadow-sm">
           <div class="flex items-center justify-between w-full">
             <span class="text-xs font-bold text-rose-400">SYN Flood Surge</span>
-            <span class="text-[10px] px-1.5 py-0.5 bg-rose-950/60 border border-rose-800 rounded text-rose-300">Attack</span>
+            <span class="text-[10px] px-1.5 py-0.5 bg-rose-950/80 border border-rose-800 rounded text-rose-300 font-medium">Attack</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">High packet rate, low packet size, 98% TCP SYN ratio anomaly.</p>
-          <span class="text-[10px] text-rose-400 font-mono mt-3 block group-hover:underline">&rarr; Inject Vector</span>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">High pps, small packet sizes, 98% TCP SYN ratio anomaly.</p>
+          <span class="text-[11px] text-rose-400 font-mono mt-3 block group-hover:translate-x-0.5 transition-transform">&rarr; Inject SYN Surge</span>
         </button>
 
-        <!-- Button 3: DNS Exfiltration / Tunnel -->
-        <button onclick="injectScenario('dns_tunnel')" class="p-3 bg-surface-800 hover:bg-amber-950/40 border border-amber-900/50 hover:border-amber-600 rounded-lg text-left transition flex flex-col justify-between group">
+        <!-- Button 3: DNS Tunnel -->
+        <button onclick="injectScenario('dns_tunnel')" class="p-3.5 bg-surface-850 hover:bg-amber-950/40 active:scale-[0.98] border border-amber-900/60 hover:border-amber-600 rounded-xl text-left transition flex flex-col justify-between group shadow-sm">
           <div class="flex items-center justify-between w-full">
             <span class="text-xs font-bold text-amber-400">DNS Tunneling</span>
-            <span class="text-[10px] px-1.5 py-0.5 bg-amber-950/60 border border-amber-800 rounded text-amber-300">Attack</span>
+            <span class="text-[10px] px-1.5 py-0.5 bg-amber-950/80 border border-amber-800 rounded text-amber-300 font-medium">Attack</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">Surging NXDOMAIN rates, high query frequency, DGA beaconing.</p>
-          <span class="text-[10px] text-amber-400 font-mono mt-3 block group-hover:underline">&rarr; Inject Vector</span>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">Surging NXDOMAIN rates, high entropy subdomains, DGA beaconing.</p>
+          <span class="text-[11px] text-amber-400 font-mono mt-3 block group-hover:translate-x-0.5 transition-transform">&rarr; Inject Tunneling</span>
         </button>
 
         <!-- Button 4: Port Scan -->
-        <button onclick="injectScenario('port_scan')" class="p-3 bg-surface-800 hover:bg-purple-950/40 border border-purple-900/50 hover:border-purple-600 rounded-lg text-left transition flex flex-col justify-between group">
+        <button onclick="injectScenario('port_scan')" class="p-3.5 bg-surface-850 hover:bg-purple-950/40 active:scale-[0.98] border border-purple-900/60 hover:border-purple-600 rounded-xl text-left transition flex flex-col justify-between group shadow-sm">
           <div class="flex items-center justify-between w-full">
             <span class="text-xs font-bold text-purple-400">Port Scan Sweep</span>
-            <span class="text-[10px] px-1.5 py-0.5 bg-purple-950/60 border border-purple-800 rounded text-purple-300">Attack</span>
+            <span class="text-[10px] px-1.5 py-0.5 bg-purple-950/80 border border-purple-800 rounded text-purple-300 font-medium">Attack</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">High unique destination ports, elevated firewall reject rate.</p>
-          <span class="text-[10px] text-purple-400 font-mono mt-3 block group-hover:underline">&rarr; Inject Vector</span>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">High unique destination ports, elevated firewall reject rate.</p>
+          <span class="text-[11px] text-purple-400 font-mono mt-3 block group-hover:translate-x-0.5 transition-transform">&rarr; Inject Sweep</span>
         </button>
+
       </div>
 
-      <div id="sim-result" class="hidden mt-4 p-3 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-slate-300 flex items-center justify-between">
+      <!-- Simulation Output Bar -->
+      <div id="sim-result" class="hidden p-3.5 bg-surface-950 border border-slate-800 rounded-xl font-mono text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-inner">
         <span id="sim-text">Simulation dispatched</span>
         <span id="sim-latency" class="text-emerald-400 font-bold"></span>
       </div>
-    </div>
+    </section>
 
-    <!-- Router & Infrastructure Details -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      
-      <!-- OpenWrt Node Info -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-          <span>OpenWrt Telemetry Node</span>
-          <span class="font-mono text-[10px] text-emerald-400">192.168.0.1</span>
-        </h3>
-        <dl class="space-y-2 text-xs">
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Router Platform:</dt>
-            <dd class="font-mono text-slate-200">OpenWrt 23.05.2 (mipsel_24kc MT7621)</dd>
-          </div>
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Firewall Architecture:</dt>
-            <dd class="font-mono text-slate-200">nftables (fw4) &bull; banIP</dd>
-          </div>
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Automated Quarantine Set:</dt>
-            <dd class="font-mono text-brand-400">inet fw4 quarantined_hosts</dd>
-          </div>
-          <div class="flex justify-between py-1">
-            <dt class="text-slate-400">AdGuard Home DNS:</dt>
-            <dd class="font-mono text-slate-200">http://192.168.0.1:8080</dd>
-          </div>
-        </dl>
+    <!-- Section 4: Nodes & Infrastructure Details -->
+    <section id="infrastructure" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Cluster Nodes & Gateway Infrastructure</h2>
+        <span class="text-[11px] text-slate-500 font-mono">Physical Topology</span>
       </div>
 
-      <!-- K3s Host Info -->
-      <div class="bg-surface-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-          <span>K3s Edge ML Hardware</span>
-          <span class="font-mono text-[10px] text-brand-400">xeon</span>
-        </h3>
-        <dl class="space-y-2 text-xs">
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Coral Edge TPU Device:</dt>
-            <dd class="font-mono text-emerald-400">/dev/bus/usb/003/003 (18d1:9302)</dd>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        
+        <!-- OpenWrt Node Info -->
+        <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+              <span>OpenWrt Telemetry Gateway</span>
+            </h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">192.168.0.1</span>
           </div>
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Runtime Delegate:</dt>
-            <dd class="font-mono text-slate-200">libedgetpu.so.1 (Standard 16.0)</dd>
-          </div>
-          <div class="flex justify-between py-1 border-b border-slate-800/60">
-            <dt class="text-slate-400">Autoencoder Architecture:</dt>
-            <dd class="font-mono text-slate-200">Dense(16) &rarr; Dense(8) &rarr; Dense(16) [INT8]</dd>
-          </div>
-          <div class="flex justify-between py-1">
-            <dt class="text-slate-400">Ingress Route:</dt>
-            <dd class="font-mono text-indigo-400">https://anomaly.gabo.lat (Cloudflare Access)</dd>
-          </div>
-        </dl>
-      </div>
+          <dl class="divide-y divide-slate-800/80 text-xs">
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Hardware & Release:</dt>
+              <dd class="font-mono text-slate-200">OpenWrt 23.05.2 (MT7621 MIPS)</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">NetFlow Sniffer:</dt>
+              <dd class="font-mono text-emerald-400">softflowd (NetFlow v9 &rarr; :2055)</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Remote Syslog:</dt>
+              <dd class="font-mono text-emerald-400">UDP :514 active</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Automated Quarantine:</dt>
+              <dd class="font-mono text-brand-400">inet fw4 quarantined_hosts</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">AdGuard Home DNS:</dt>
+              <dd class="font-mono text-slate-300">
+                <a href="http://192.168.0.1:8080" target="_blank" class="text-indigo-400 hover:underline">192.168.0.1:8080 &rarr;</a>
+              </dd>
+            </div>
+          </dl>
+        </div>
 
-    </div>
+        <!-- K3s Host Info -->
+        <div class="bg-surface-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+              <span>K3s Edge ML Hardware</span>
+            </h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-brand-950 text-brand-400 border border-brand-800">xeon</span>
+          </div>
+          <dl class="divide-y divide-slate-800/80 text-xs">
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Google Coral Accelerator:</dt>
+              <dd class="font-mono text-emerald-400">/dev/bus/usb/003/003 (18d1:9302)</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Runtime Delegate:</dt>
+              <dd class="font-mono text-slate-200">libedgetpu.so.1 (Standard)</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Model Topology:</dt>
+              <dd class="font-mono text-slate-200">Dense(16) &rarr; Dense(8) &rarr; Dense(16) [INT8]</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">External Endpoint:</dt>
+              <dd class="font-mono text-indigo-400">https://anomaly.gabo.lat</dd>
+            </div>
+            <div class="flex justify-between py-2">
+              <dt class="text-slate-400">Authentication:</dt>
+              <dd class="font-mono text-slate-300">Cloudflare Zero Trust Access</dd>
+            </div>
+          </dl>
+        </div>
+
+      </div>
+    </section>
 
   </main>
 
+  <!-- Sticky Bottom Quick-Jump on Mobile -->
+  <div class="lg:hidden fixed bottom-4 right-4 z-40">
+    <a href="#" class="h-10 w-10 rounded-full bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition active:scale-90" aria-label="Back to top">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+      </svg>
+    </a>
+  </div>
+
   <!-- Footer -->
-  <footer class="border-t border-slate-800/80 bg-surface-900/40 text-center py-4 text-xs text-slate-500">
-    Edge ML Cyber Infrastructure &bull; Bare-Metal K3s &bull; Coral Edge TPU INT8 Acceleration &bull; Zero-Trust Zero-Cloud
+  <footer class="border-t border-slate-800/80 bg-surface-950 text-center py-6 text-xs text-slate-500 px-4">
+    <p>Edge ML Cyber Infrastructure &bull; Bare-Metal K3s &bull; Coral Edge TPU INT8 Acceleration</p>
+    <p class="text-[11px] text-slate-600 mt-1">Protected by Cloudflare Access &bull; Vector Telemetry &bull; VictoriaMetrics</p>
   </footer>
 
   <!-- Dashboard JavaScript Logic -->
@@ -339,18 +514,40 @@ def get_dashboard_html() -> str:
     let currentThreshold = 0.001806;
     let totalInferences = 0;
     let anomaliesCount = 0;
+    let isPolling = true;
+    let pollInterval = null;
 
-    // Feature Names matching 32-D vector
-    const featureNames = [
-      "bytes_rate", "pkts_rate", "avg_pkt_sz", "avg_dur",
-      "syn_rate", "fin_rate", "rst_rate", "syn_fin_ratio",
-      "rst_ratio", "tcp_ratio", "udp_ratio", "icmp_ratio",
-      "uniq_src_ip", "uniq_dst_ip", "uniq_dst_port", "fanout_ratio",
-      "dns_query_rate", "dns_nx_rate", "dns_nx_ratio", "adblock_drop_rate",
-      "adblock_drop_ratio", "fw_reject_rate", "fw_syn_drop_rate", "fw_out_drop_rate",
-      "k8s_req_rate", "k8s_401_rate", "k8s_403_rate", "k8s_err_ratio",
-      "k8s_exec_probe", "k8s_priv_escalate", "k8s_anon_req", "k8s_churn_rate"
-    ];
+    // Mobile Hamburger Menu Toggle
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      const hamburger = document.getElementById('hamburger-icon');
+      const close = document.getElementById('close-icon');
+      if (menu.classList.contains('hidden')) {
+        menu.classList.remove('hidden');
+        hamburger.classList.add('hidden');
+        close.classList.remove('hidden');
+      } else {
+        menu.classList.add('hidden');
+        hamburger.classList.remove('hidden');
+        close.classList.add('hidden');
+      }
+    }
+
+    // Polling Toggle
+    function togglePolling() {
+      isPolling = !isPolling;
+      const icon = document.getElementById('poll-icon');
+      if (isPolling) {
+        icon.classList.add('animate-spin');
+        icon.classList.remove('text-slate-500');
+        icon.classList.add('text-emerald-400');
+        updateStatus();
+      } else {
+        icon.classList.remove('animate-spin');
+        icon.classList.remove('text-emerald-400');
+        icon.classList.add('text-slate-500');
+      }
+    }
 
     // Chart.js: MSE Trend Chart
     const ctxMse = document.getElementById('mseChart').getContext('2d');
@@ -361,11 +558,12 @@ def get_dashboard_html() -> str:
           label: 'Reconstruction Loss (MSE)',
           data: Array(20).fill(0.0005),
           borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          backgroundColor: 'rgba(16, 185, 129, 0.12)',
           borderWidth: 2,
           fill: true,
           tension: 0.3,
-          pointRadius: 2
+          pointRadius: 2,
+          pointHoverRadius: 4
         },
         {
           label: 'Anomaly Threshold',
@@ -384,13 +582,14 @@ def get_dashboard_html() -> str:
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
         plugins: {
           legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } }
         },
         scales: {
-          x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { display: false } },
+          x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { display: false } },
           y: {
-            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+            grid: { color: 'rgba(51, 65, 85, 0.25)' },
             ticks: { color: '#94a3b8', font: { family: 'monospace', size: 10 } },
             suggestedMin: 0,
             suggestedMax: 0.005
@@ -404,10 +603,10 @@ def get_dashboard_html() -> str:
     const residualChart = new Chart(ctxResidual, {
       type: 'bar',
       data: {
-        labels: ['tcp_ratio', 'syn_rate', 'fw_reject_rate', 'dns_nx_ratio', 'k8s_err_ratio'],
+        labels: ['tcp_ratio', 'syn_rate', 'fw_reject', 'dns_nx', 'k8s_err'],
         datasets: [{
           label: 'Residual Score',
-          data: [0.01, 0.008, 0.005, 0.003, 0.002],
+          data: [0.008, 0.006, 0.004, 0.002, 0.001],
           backgroundColor: '#06b6d4',
           borderRadius: 4
         }]
@@ -416,11 +615,9 @@ def get_dashboard_html() -> str:
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
+        plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+          x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
           y: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 } } }
         }
       }
@@ -428,6 +625,7 @@ def get_dashboard_html() -> str:
 
     // Fetch live status periodically
     async function updateStatus() {
+      if (!isPolling) return;
       try {
         const res = await fetch('/v1/status');
         if (!res.ok) return;
@@ -435,16 +633,20 @@ def get_dashboard_html() -> str:
         
         currentThreshold = data.anomaly_threshold;
         document.getElementById('top-threshold').innerText = currentThreshold.toFixed(6);
+        document.getElementById('mob-threshold').innerText = currentThreshold.toFixed(6);
         document.getElementById('card-threshold').innerText = currentThreshold.toFixed(5);
         document.getElementById('card-device').innerText = data.device_type;
         document.getElementById('card-inferences').innerText = data.total_inferences;
         
+        const now = new Date();
+        document.getElementById('last-updated-text').innerText = `Updated ${now.toLocaleTimeString()}`;
+
         if (data.edge_tpu_connected) {
-          document.getElementById('tpu-pill').className = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800";
-          document.getElementById('tpu-pill').innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>Coral TPU Active`;
+          document.getElementById('tpu-pill').className = "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 shrink-0";
+          document.getElementById('tpu-pill').innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span><span class="hidden xs:inline">Coral </span>Active`;
         } else {
-          document.getElementById('tpu-pill').className = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-950 text-amber-400 border border-amber-800";
-          document.getElementById('tpu-pill').innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-amber-400 mr-1.5"></span>CPU Fallback Mode`;
+          document.getElementById('tpu-pill').className = "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/80 text-amber-400 border border-amber-800/80 shrink-0";
+          document.getElementById('tpu-pill').innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-amber-400 mr-1.5"></span>CPU Mode`;
         }
       } catch (e) {
         console.warn('Status poll error', e);
@@ -502,6 +704,7 @@ def get_dashboard_html() -> str:
 
         // Update top stats
         document.getElementById('top-latency').innerText = `${result.inference_latency_ms.toFixed(2)} ms`;
+        document.getElementById('mob-latency').innerText = `${result.inference_latency_ms.toFixed(2)} ms`;
         document.getElementById('card-latency').innerText = result.inference_latency_ms.toFixed(2);
         document.getElementById('card-mse').innerText = result.reconstruction_error_mse.toFixed(5);
         
@@ -514,8 +717,8 @@ def get_dashboard_html() -> str:
         // Update colors based on anomaly
         if (result.is_anomaly) {
           mseChart.data.datasets[0].borderColor = '#f43f5e';
-          mseChart.data.datasets[0].backgroundColor = 'rgba(244, 63, 94, 0.15)';
-          document.getElementById('card-mse').className = "text-2xl font-bold font-mono text-rose-400";
+          mseChart.data.datasets[0].backgroundColor = 'rgba(244, 63, 94, 0.18)';
+          document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-rose-400 tracking-tight";
           document.getElementById('card-mse-bar').className = "bg-rose-500 h-full rounded-full transition-all duration-300";
           document.getElementById('card-mse-bar').style.width = "100%";
           document.getElementById('card-status-text').className = "text-rose-400 font-bold";
@@ -527,8 +730,8 @@ def get_dashboard_html() -> str:
           document.getElementById('card-anomalies-count').innerText = anomaliesCount;
         } else {
           mseChart.data.datasets[0].borderColor = '#10b981';
-          mseChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.1)';
-          document.getElementById('card-mse').className = "text-2xl font-bold font-mono text-emerald-400";
+          mseChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.12)';
+          document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-emerald-400 tracking-tight";
           document.getElementById('card-mse-bar').className = "bg-emerald-400 h-full rounded-full transition-all duration-300";
           const pct = Math.min(100, Math.round((result.reconstruction_error_mse / currentThreshold) * 100));
           document.getElementById('card-mse-bar').style.width = `${pct}%`;
@@ -553,8 +756,8 @@ def get_dashboard_html() -> str:
       }
     }
 
-    // Polling timer
-    setInterval(updateStatus, 3000);
+    // Polling timer (3 seconds)
+    pollInterval = setInterval(updateStatus, 3000);
     updateStatus();
   </script>
 
