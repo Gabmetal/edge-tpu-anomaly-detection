@@ -349,7 +349,7 @@ def get_dashboard_html() -> str:
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-sm font-bold text-white tracking-wide">Top Feature Residuals</h3>
-                <p class="text-xs text-slate-400 mt-0.5">Root-cause contribution $(x_i - \hat{x}_i)^2$</p>
+                <p class="text-xs text-slate-400 mt-0.5">Root-cause contribution $(x_i - \\hat{x}_i)^2$</p>
               </div>
             </div>
             <div class="h-60 sm:h-72 relative">
@@ -713,6 +713,11 @@ def get_dashboard_html() -> str:
         
         const badgeText = evt.is_anomaly ? "QUARANTINED" : "NOMINAL";
         const dateStr = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : "--:--:--";
+        const mseVal = Number(evt.mse != null ? evt.mse : 0);
+        const threshVal = Number(evt.threshold != null ? evt.threshold : 0);
+        const resVal = Number(evt.root_cause_residual != null ? evt.root_cause_residual : 0);
+        const latVal = Number(evt.latency_ms != null ? evt.latency_ms : 0);
+        const scenarioName = (evt.scenario || 'unknown').toUpperCase();
 
         tr.innerHTML = `
           <td class="py-2.5 px-4">
@@ -722,16 +727,16 @@ def get_dashboard_html() -> str:
           </td>
           <td class="py-2.5 px-4 text-slate-400 font-mono">${dateStr}</td>
           <td class="py-2.5 px-4 font-semibold ${evt.is_anomaly ? 'text-rose-400' : 'text-slate-200'}">
-            ${evt.scenario.toUpperCase()}
+            ${scenarioName}
           </td>
           <td class="py-2.5 px-4 font-mono font-bold ${evt.is_anomaly ? 'text-rose-400' : 'text-emerald-400'}">
-            ${evt.mse.toFixed(5)} <span class="text-slate-500 font-normal">/ ${evt.threshold.toFixed(5)}</span>
+            ${mseVal.toFixed(5)} <span class="text-slate-500 font-normal">/ ${threshVal.toFixed(5)}</span>
           </td>
           <td class="py-2.5 px-4 font-mono text-cyan-400">
-            ${evt.root_cause} <span class="text-slate-500 text-[10px]">(${evt.root_cause_residual.toFixed(4)})</span>
+            ${evt.root_cause || 'nominal'} <span class="text-slate-500 text-[10px]">(${resVal.toFixed(4)})</span>
           </td>
-          <td class="py-2.5 px-4 font-mono text-emerald-400">${evt.latency_ms.toFixed(2)} ms</td>
-          <td class="py-2.5 px-4 font-sans text-slate-400">${evt.mitigation}</td>
+          <td class="py-2.5 px-4 font-mono text-emerald-400">${latVal.toFixed(2)} ms</td>
+          <td class="py-2.5 px-4 font-sans text-slate-400">${evt.mitigation || 'Normal Passthrough'}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -758,12 +763,12 @@ def get_dashboard_html() -> str:
         if (!res.ok) return;
         const data = await res.json();
         
-        currentThreshold = data.anomaly_threshold;
+        currentThreshold = Number(data.anomaly_threshold != null ? data.anomaly_threshold : 0.035);
         document.getElementById('top-threshold').innerText = currentThreshold.toFixed(6);
         document.getElementById('mob-threshold').innerText = currentThreshold.toFixed(6);
         document.getElementById('card-threshold').innerText = currentThreshold.toFixed(5);
-        document.getElementById('card-device').innerText = data.device_type;
-        document.getElementById('card-inferences').innerText = data.total_inferences;
+        document.getElementById('card-device').innerText = data.device_type || 'Unknown';
+        document.getElementById('card-inferences').innerText = data.total_inferences != null ? data.total_inferences : '--';
         
         const now = new Date();
         document.getElementById('last-updated-text').innerText = `Updated ${now.toLocaleTimeString()}`;
@@ -778,6 +783,7 @@ def get_dashboard_html() -> str:
       } catch (e) {
         console.warn('Status poll error', e);
       }
+    }
     }
 
     // Interactive Scenario Injection
@@ -822,27 +828,34 @@ def get_dashboard_html() -> str:
         });
         const latency = (performance.now() - t0).toFixed(2);
         const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || `Server returned ${res.status}`);
+        }
         
         // Handle single or array return
         const result = Array.isArray(data) ? data[0] : data;
+        const mse = Number(result.mse != null ? result.mse : (result.reconstruction_error_mse != null ? result.reconstruction_error_mse : 0));
+        const latencyMs = Number(result.inference_latency_ms != null ? result.inference_latency_ms : latency);
+        const isAnomaly = Boolean(result.is_anomaly);
+        const devName = result.device === 'edgetpu' ? 'Edge TPU' : (result.device || 'TPU');
 
-        document.getElementById('sim-text').innerText = `${type.toUpperCase()} &rarr; MSE: ${result.reconstruction_error_mse.toFixed(6)} | Flag: ${result.is_anomaly ? 'CRITICAL ANOMALY' : 'CLEAN'}`;
-        document.getElementById('sim-latency').innerText = `${result.inference_latency_ms.toFixed(3)} ms (TPU)`;
+        document.getElementById('sim-text').innerHTML = `<span class="font-bold">${type.toUpperCase()}</span> &rarr; MSE: <span class="font-mono font-bold">${mse.toFixed(6)}</span> | Flag: <span class="${isAnomaly ? 'text-rose-400 font-bold' : 'text-emerald-400 font-semibold'}">${isAnomaly ? 'CRITICAL ANOMALY' : 'CLEAN'}</span>`;
+        document.getElementById('sim-latency').innerText = `${latencyMs.toFixed(3)} ms (${devName})`;
 
         // Update top stats
-        document.getElementById('top-latency').innerText = `${result.inference_latency_ms.toFixed(2)} ms`;
-        document.getElementById('mob-latency').innerText = `${result.inference_latency_ms.toFixed(2)} ms`;
-        document.getElementById('card-latency').innerText = result.inference_latency_ms.toFixed(2);
-        document.getElementById('card-mse').innerText = result.reconstruction_error_mse.toFixed(5);
+        document.getElementById('top-latency').innerText = `${latencyMs.toFixed(2)} ms`;
+        document.getElementById('mob-latency').innerText = `${latencyMs.toFixed(2)} ms`;
+        document.getElementById('card-latency').innerText = latencyMs.toFixed(2);
+        document.getElementById('card-mse').innerText = mse.toFixed(5);
         
         // Push to chart
         mseChart.data.datasets[0].data.shift();
-        mseChart.data.datasets[0].data.push(result.reconstruction_error_mse);
+        mseChart.data.datasets[0].data.push(mse);
         mseChart.data.datasets[1].data.shift();
         mseChart.data.datasets[1].data.push(currentThreshold);
 
         // Update colors based on anomaly
-        if (result.is_anomaly) {
+        if (isAnomaly) {
           mseChart.data.datasets[0].borderColor = '#f43f5e';
           mseChart.data.datasets[0].backgroundColor = 'rgba(244, 63, 94, 0.18)';
           document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-rose-400 tracking-tight";
@@ -852,7 +865,7 @@ def get_dashboard_html() -> str:
           document.getElementById('card-status-text').innerText = "ANOMALY DETECTED";
           
           document.getElementById('alert-banner').classList.remove('hidden');
-          document.getElementById('alert-mse-value').innerText = `MSE: ${result.reconstruction_error_mse.toFixed(5)}`;
+          document.getElementById('alert-mse-value').innerText = `MSE: ${mse.toFixed(5)}`;
           anomaliesCount++;
           document.getElementById('card-anomalies-count').innerText = anomaliesCount;
         } else {
@@ -860,7 +873,8 @@ def get_dashboard_html() -> str:
           mseChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.12)';
           document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-emerald-400 tracking-tight";
           document.getElementById('card-mse-bar').className = "bg-emerald-400 h-full rounded-full transition-all duration-300";
-          const pct = Math.min(100, Math.round((result.reconstruction_error_mse / currentThreshold) * 100));
+          const thresh = currentThreshold > 0 ? currentThreshold : 0.035;
+          const pct = Math.min(100, Math.round((mse / thresh) * 100));
           document.getElementById('card-mse-bar').style.width = `${pct}%`;
           document.getElementById('card-status-text').className = "text-emerald-400 font-medium";
           document.getElementById('card-status-text').innerText = "Nominal";
@@ -870,11 +884,12 @@ def get_dashboard_html() -> str:
         mseChart.update();
 
         // Update residuals bar chart
-        if (result.feature_residuals && result.feature_residuals.length > 0) {
-          const sorted = [...result.feature_residuals].sort((a,b) => b.residual - a.residual).slice(0, 5);
+        const residualsList = result.top_residuals || result.feature_residuals || [];
+        if (residualsList.length > 0) {
+          const sorted = [...residualsList].sort((a,b) => (Number(b.residual_mse ?? b.residual ?? 0)) - (Number(a.residual_mse ?? a.residual ?? 0))).slice(0, 5);
           residualChart.data.labels = sorted.map(s => s.feature_name);
-          residualChart.data.datasets[0].data = sorted.map(s => s.residual);
-          residualChart.data.datasets[0].backgroundColor = result.is_anomaly ? '#f43f5e' : '#06b6d4';
+          residualChart.data.datasets[0].data = sorted.map(s => Number(s.residual_mse ?? s.residual ?? 0));
+          residualChart.data.datasets[0].backgroundColor = isAnomaly ? '#f43f5e' : '#06b6d4';
           residualChart.update();
         }
 
@@ -882,7 +897,7 @@ def get_dashboard_html() -> str:
         fetchEvents();
 
       } catch (e) {
-        document.getElementById('sim-text').innerText = `Simulation failed: ${e}`;
+        document.getElementById('sim-text').innerText = `Simulation failed: ${e.message || e}`;
       }
     }
 

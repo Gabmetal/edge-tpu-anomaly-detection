@@ -71,6 +71,7 @@ class PredictionResponse(BaseModel):
     timestamp: Optional[str]
     is_anomaly: bool
     mse: float
+    reconstruction_error_mse: Optional[float] = Field(None, description="Reconstruction MSE error")
     threshold: float
     inference_latency_ms: float
     device: str  # "edgetpu" or "cpu_fallback"

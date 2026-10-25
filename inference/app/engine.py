@@ -303,6 +303,7 @@ class EdgeTPUInferenceEngine:
             timestamp=timestamp,
             is_anomaly=is_anomaly,
             mse=round(mse, 6),
+            reconstruction_error_mse=round(mse, 6),
             threshold=round(self.threshold, 6),
             inference_latency_ms=round(latency_ms, 3),
             device="edgetpu" if self.is_edgetpu else "cpu_fallback",
