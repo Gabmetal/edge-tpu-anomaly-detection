@@ -108,7 +108,10 @@ victoriaMetrics:
   vmRule:
     enabled: true
     highAnomalyMseThreshold: 0.045
-    evaluationDuration: 30s
+    earlyWarningMseThreshold: 0.022
+    featureResidualThreshold: 0.35
+    evaluationDuration: 20s
+    earlyWarningDuration: 15s
     latencyThresholdSeconds: 0.002
 
 # 6. Grafana Dashboard Auto-Import

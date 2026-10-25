@@ -112,7 +112,16 @@ class AlertmanagerWebhookHandler(http.server.BaseHTTPRequestHandler):
             alertname = alert.get("labels", {}).get("alertname")
             annotations = alert.get("annotations", {})
 
-            if status == "firing" and alertname == "HighNetworkAnomalyScore":
+            ACTIONABLE_ALERTS = {
+                "HighNetworkAnomalyScore",
+                "CriticalNetworkIntrusionDetected",
+                "SynFloodAttackDetected",
+                "DnsTunnelingOrExfiltrationDetected",
+                "NetworkPortScanSweepDetected",
+                "K8sControlPlaneTamperingDetected",
+            }
+
+            if status == "firing" and alertname in ACTIONABLE_ALERTS:
                 logger.warning(f"ACTIONABLE INCIDENT: {alertname} FIRING!")
                 logger.warning(f"Summary: {annotations.get('summary')}")
                 logger.warning(f"Details: {annotations.get('description')}")

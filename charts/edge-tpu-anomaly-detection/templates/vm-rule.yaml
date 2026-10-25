@@ -10,7 +10,78 @@ spec:
   groups:
     - name: edge_tpu_anomaly_alerts
       rules:
-        # Alert 1: Reconstruction Error Exceeds Calibrated Baseline Threshold
+        # Tier 1: Early Detection / Pre-Attack Reconnaissance Warning
+        - alert: EarlyNetworkAnomalyWarning
+          expr: anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.earlyWarningMseThreshold }}
+          for: {{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            threat_stage: early-reconnaissance
+          annotations:
+            summary: "Early Network Anomaly Warning Detected on Edge TPU"
+            description: "Autoencoder reconstruction error MSE = {{ "{{" }} $value | printf \"%.5f\" {{ "}}" }} exceeds early warning baseline ({{ .Values.victoriaMetrics.vmRule.earlyWarningMseThreshold }}) for >{{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}."
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Tier 2: Specific Intrusion Signatures (Root-Cause Attributed)
+        - alert: SynFloodAttackDetected
+          expr: (anomaly_feature_residual{feature_name=~".*syn.*"} > {{ .Values.victoriaMetrics.vmRule.featureResidualThreshold }}) and (anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.earlyWarningMseThreshold }})
+          for: {{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            attack_vector: syn-flood-dos
+          annotations:
+            summary: "Active TCP SYN Flood DoS Attack Detected"
+            description: "TCP SYN rate residual MSE = {{ "{{" }} $value | printf \"%.4f\" {{ "}}" }} with elevated anomaly loss. High-rate half-open TCP connection surge detected."
+            mitigation_action: "Quarantine suspect source IP in OpenWrt nftables"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: DnsTunnelingOrExfiltrationDetected
+          expr: ((anomaly_feature_residual{feature_name="dns_nxdomain_ratio"} > {{ .Values.victoriaMetrics.vmRule.featureResidualThreshold }}) or (anomaly_feature_residual{feature_name="dns_query_rate"} > 0.40)) and (anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.earlyWarningMseThreshold }})
+          for: {{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            attack_vector: dns-tunnel-exfiltration
+          annotations:
+            summary: "DNS Tunneling / Data Exfiltration Surge Detected"
+            description: "Surging DNS NXDOMAIN or query residual = {{ "{{" }} $value | printf \"%.4f\" {{ "}}" }} detected. Indicates potential covert DNS tunneling or malicious DGA beaconing."
+            mitigation_action: "Block offending client DNS queries via AdGuard Home & nftables"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: NetworkPortScanSweepDetected
+          expr: ((anomaly_feature_residual{feature_name="firewall_reject_rate"} > 0.30) or (anomaly_feature_residual{feature_name="flow_fanout_ratio"} > {{ .Values.victoriaMetrics.vmRule.featureResidualThreshold }}) or (anomaly_feature_residual{feature_name="flow_unique_dst_ports"} > {{ .Values.victoriaMetrics.vmRule.featureResidualThreshold }})) and (anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.earlyWarningMseThreshold }})
+          for: {{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            attack_vector: port-scan-sweep
+          annotations:
+            summary: "Network Port Scan Sweep / Lateral Reconnaissance Detected"
+            description: "Firewall reject or connection fanout residual = {{ "{{" }} $value | printf \"%.4f\" {{ "}}" }}. Indicates horizontal LAN sweep or vertical service probing."
+            mitigation_action: "Monitor host for lateral traversal and rate-limit ingress"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: K8sControlPlaneTamperingDetected
+          expr: (anomaly_feature_residual{feature_name=~"k8s_api_401_rate|k8s_api_403_rate|k8s_exec_probe_rate|k8s_privilege_escalate_rate"} > 0.20) and (anomaly_reconstruction_error_mse > 0.020)
+          for: {{ .Values.victoriaMetrics.vmRule.earlyWarningDuration }}
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            attack_vector: k8s-control-plane-tampering
+          annotations:
+            summary: "Kubernetes Control Plane Anomaly / Unauthorized API Probing"
+            description: "Kubernetes audit residual = {{ "{{" }} $value | printf \"%.4f\" {{ "}}" }}. Detected elevated HTTP 401/403 errors or container exec probing against K8s API server."
+            mitigation_action: "Apply dynamic NetworkPolicy isolation to suspicious pods"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Tier 3: Critical Multi-Feature Anomaly (Full Automated Quarantine)
         - alert: HighNetworkAnomalyScore
           expr: anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.highAnomalyMseThreshold }}
           for: {{ .Values.victoriaMetrics.vmRule.evaluationDuration }}
@@ -18,15 +89,41 @@ spec:
             severity: critical
             pipeline: edge-tpu-anomaly-detection
             release: {{ .Release.Name }}
+            threat_stage: active-intrusion
           annotations:
             summary: "High Network/Cluster Anomaly Score Detected on Edge TPU"
             description: "Autoencoder reconstruction error (MSE = {{ "{{" }} $value | printf \"%.5f\" {{ "}}" }}) exceeded baseline anomaly threshold for >{{ .Values.victoriaMetrics.vmRule.evaluationDuration }}."
-            runbook_url: "https://wiki.internal.net/runbooks/network-anomaly"
+            runbook_url: "https://anomaly.gabo.lat"
 
-        # Alert 2: Coral TPU Disconnected / Fallback Mode Active
+        - alert: CriticalNetworkIntrusionDetected
+          expr: anomaly_reconstruction_error_mse > {{ .Values.victoriaMetrics.vmRule.highAnomalyMseThreshold }}
+          for: {{ .Values.victoriaMetrics.vmRule.evaluationDuration }}
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+            threat_stage: active-intrusion
+          annotations:
+            summary: "Critical Network Intrusion Score - Quarantine Triggered"
+            description: "Autoencoder reconstruction error (MSE = {{ "{{" }} $value | printf \"%.5f\" {{ "}}" }}) exceeded critical threshold ({{ .Values.victoriaMetrics.vmRule.highAnomalyMseThreshold }}) for >{{ .Values.victoriaMetrics.vmRule.evaluationDuration }}. Automated mitigation worker initiated."
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Ingestion & Visibility Health
+        - alert: TelemetryPipelineHalted
+          expr: (sum(rate(anomaly_inferences_total[2m])) == 0) and (edge_tpu_device_status == 1)
+          for: 1m
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            release: {{ .Release.Name }}
+          annotations:
+            summary: "Telemetry Ingestion Pipeline Halted (Detection Blind Spot)"
+            description: "Zero telemetry vectors evaluated in the last 2 minutes while Edge TPU is online. Verify OpenWrt softflowd, syslog export, and Vector daemonset."
+
+        # Hardware Accelerator Health
         - alert: EdgeTpuDeviceDisconnected
           expr: edge_tpu_device_status == 0
-          for: 1m
+          for: 30s
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection
@@ -35,10 +132,9 @@ spec:
             summary: "Google Coral Edge TPU Hardware Disconnected"
             description: "Physical Edge TPU accelerator is offline; inference microservice is operating in degraded CPU fallback mode."
 
-        # Alert 3: Inference Latency SLA Breach (>2ms on Edge TPU)
         - alert: HighInferenceLatency
           expr: (rate(edge_tpu_inference_latency_seconds_sum[1m]) / rate(edge_tpu_inference_latency_seconds_count[1m])) > {{ .Values.victoriaMetrics.vmRule.latencyThresholdSeconds }}
-          for: 2m
+          for: 1m
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection

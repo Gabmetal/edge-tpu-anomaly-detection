@@ -4,42 +4,131 @@ metadata:
   name: edge-tpu-anomaly-rules
   namespace: anomaly-detection
   labels:
-    app.kubernetes.io/name: edge-tpu-inference
     role: alert-rules
+    pipeline: edge-tpu-anomaly-detection
 spec:
   groups:
     - name: edge_tpu_anomaly_alerts
       rules:
-        # Alert 1: Reconstruction Error Exceeds Calibrated Baseline Threshold for 3 consecutive windows (30s)
-        - alert: HighNetworkAnomalyScore
-          expr: anomaly_reconstruction_error_mse > 0.045
-          for: 30s
+        # Tier 1: Early Detection / Pre-Attack Reconnaissance Warning
+        - alert: EarlyNetworkAnomalyWarning
+          expr: anomaly_reconstruction_error_mse > 0.022
+          for: 15s
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            threat_stage: early-reconnaissance
+          annotations:
+            summary: "Early Network Anomaly Warning Detected on Edge TPU"
+            description: "Autoencoder reconstruction error MSE = {{ $value | printf \"%.5f\" }} exceeds early warning baseline (0.022) for >15s."
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Tier 2: Specific Intrusion Signatures (Root-Cause Attributed)
+        - alert: SynFloodAttackDetected
+          expr: (anomaly_feature_residual{feature_name=~".*syn.*"} > 0.35) and (anomaly_reconstruction_error_mse > 0.025)
+          for: 15s
           labels:
             severity: critical
             pipeline: edge-tpu-anomaly-detection
+            attack_vector: syn-flood-dos
+          annotations:
+            summary: "Active TCP SYN Flood DoS Attack Detected"
+            description: "TCP SYN rate residual MSE = {{ $value | printf \"%.4f\" }} with elevated anomaly loss. High-rate half-open TCP connection surge detected."
+            mitigation_action: "Quarantine suspect source IP in OpenWrt nftables"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: DnsTunnelingOrExfiltrationDetected
+          expr: ((anomaly_feature_residual{feature_name="dns_nxdomain_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="dns_query_rate"} > 0.40)) and (anomaly_reconstruction_error_mse > 0.025)
+          for: 15s
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            attack_vector: dns-tunnel-exfiltration
+          annotations:
+            summary: "DNS Tunneling / Data Exfiltration Surge Detected"
+            description: "Surging DNS NXDOMAIN or query residual = {{ $value | printf \"%.4f\" }} detected. Indicates potential covert DNS tunneling or malicious DGA beaconing."
+            mitigation_action: "Block offending client DNS queries via AdGuard Home & nftables"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: NetworkPortScanSweepDetected
+          expr: ((anomaly_feature_residual{feature_name="firewall_reject_rate"} > 0.30) or (anomaly_feature_residual{feature_name="flow_fanout_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="flow_unique_dst_ports"} > 0.35)) and (anomaly_reconstruction_error_mse > 0.025)
+          for: 15s
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+            attack_vector: port-scan-sweep
+          annotations:
+            summary: "Network Port Scan Sweep / Lateral Reconnaissance Detected"
+            description: "Firewall reject or connection fanout residual = {{ $value | printf \"%.4f\" }}. Indicates horizontal LAN sweep or vertical service probing."
+            mitigation_action: "Monitor host for lateral traversal and rate-limit ingress"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        - alert: K8sControlPlaneTamperingDetected
+          expr: (anomaly_feature_residual{feature_name=~"k8s_api_401_rate|k8s_api_403_rate|k8s_exec_probe_rate|k8s_privilege_escalate_rate"} > 0.20) and (anomaly_reconstruction_error_mse > 0.020)
+          for: 15s
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            attack_vector: k8s-control-plane-tampering
+          annotations:
+            summary: "Kubernetes Control Plane Anomaly / Unauthorized API Probing"
+            description: "Kubernetes audit residual = {{ $value | printf \"%.4f\" }}. Detected elevated HTTP 401/403 errors or container exec probing against K8s API server."
+            mitigation_action: "Apply dynamic NetworkPolicy isolation to suspicious pods"
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Tier 3: Critical Multi-Feature Anomaly (Full Automated Quarantine)
+        - alert: HighNetworkAnomalyScore
+          expr: anomaly_reconstruction_error_mse > 0.045
+          for: 20s
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            threat_stage: active-intrusion
           annotations:
             summary: "High Network/Cluster Anomaly Score Detected on Edge TPU"
-            description: "The autoencoder reconstruction error (MSE = {{ $value | printf \"%.5f\" }}) has exceeded the baseline anomaly threshold for >30 seconds. Injected intrusion, port scan, or lateral movement detected."
-            runbook_url: "https://wiki.internal.net/runbooks/network-anomaly"
+            description: "Autoencoder reconstruction error (MSE = {{ $value | printf \"%.5f\" }}) exceeded baseline anomaly threshold for >20s."
+            runbook_url: "https://anomaly.gabo.lat"
 
-        # Alert 2: Coral TPU Disconnected / Fallback Mode Active
-        - alert: EdgeTpuDeviceDisconnected
-          expr: edge_tpu_device_status == 0
+        - alert: CriticalNetworkIntrusionDetected
+          expr: anomaly_reconstruction_error_mse > 0.045
+          for: 20s
+          labels:
+            severity: critical
+            pipeline: edge-tpu-anomaly-detection
+            threat_stage: active-intrusion
+          annotations:
+            summary: "Critical Network Intrusion Score - Quarantine Triggered"
+            description: "Autoencoder reconstruction error (MSE = {{ $value | printf \"%.5f\" }}) exceeded critical threshold (0.045) for >20s. Automated mitigation worker initiated."
+            runbook_url: "https://anomaly.gabo.lat"
+
+        # Ingestion & Visibility Health
+        - alert: TelemetryPipelineHalted
+          expr: (sum(rate(anomaly_inferences_total[2m])) == 0) and (edge_tpu_device_status == 1)
           for: 1m
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection
           annotations:
-            summary: "Google Coral Edge TPU Hardware Disconnected"
-            description: "Edge TPU accelerator is unavailable or failed to initialize. The inference microservice is currently running in degraded CPU fallback mode."
+            summary: "Telemetry Ingestion Pipeline Halted (Detection Blind Spot)"
+            description: "Zero telemetry vectors evaluated in the last 2 minutes while Edge TPU is online. Verify OpenWrt softflowd, syslog export, and Vector daemonset."
 
-        # Alert 3: Inference Latency SLA Breach (>2ms on Edge TPU)
-        - alert: HighInferenceLatency
-          expr: (rate(edge_tpu_inference_latency_seconds_sum[1m]) / rate(edge_tpu_inference_latency_seconds_count[1m])) > 0.002
-          for: 2m
+        # Hardware Accelerator Health
+        - alert: EdgeTpuDeviceDisconnected
+          expr: edge_tpu_device_status == 0
+          for: 30s
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection
           annotations:
-            summary: "Edge TPU Inference Latency Exceeds 2ms SLA"
-            description: "Average inference latency is {{ $value | printf \"%.4f\" }}s, exceeding the 2ms sub-millisecond edge requirement."
+            summary: "Google Coral Edge TPU Hardware Disconnected"
+            description: "Physical Edge TPU accelerator is offline; inference microservice is operating in degraded CPU fallback mode."
+
+        - alert: HighInferenceLatency
+          expr: (rate(edge_tpu_inference_latency_seconds_sum[1m]) / rate(edge_tpu_inference_latency_seconds_count[1m])) > 0.002
+          for: 1m
+          labels:
+            severity: warning
+            pipeline: edge-tpu-anomaly-detection
+          annotations:
+            summary: "Edge TPU Inference Latency Exceeds SLA"
+            description: "Average inference latency is {{ $value | printf \"%.4f\" }}s, exceeding the sub-millisecond edge requirement."
