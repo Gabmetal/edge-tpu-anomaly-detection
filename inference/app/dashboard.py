@@ -20,7 +20,12 @@ def get_dashboard_html() -> str:
   <title>Edge TPU Anomaly Detection SOC</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2306b6d4'><circle cx='12' cy='12' r='10'/></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/chart.umd.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\\/script>');
+    }
+  </script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -623,79 +628,95 @@ def get_dashboard_html() -> str:
       }
     }
 
-    // Chart.js: MSE Trend Chart
-    const ctxMse = document.getElementById('mseChart').getContext('2d');
-    const mseData = {
-      labels: Array(20).fill(''),
-      datasets: [
-        {
-          label: 'Reconstruction Loss (MSE)',
-          data: Array(20).fill(0.0005),
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.12)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 2,
-          pointHoverRadius: 4
-        },
-        {
-          label: 'Anomaly Threshold',
-          data: Array(20).fill(currentThreshold),
-          borderColor: '#f43f5e',
-          borderWidth: 1.5,
-          borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false
-        }
-      ]
-    };
-    const mseChart = new Chart(ctxMse, {
-      type: 'line',
-      data: mseData,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: {
-          legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } }
-        },
-        scales: {
-          x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { display: false } },
-          y: {
-            grid: { color: 'rgba(51, 65, 85, 0.25)' },
-            ticks: { color: '#94a3b8', font: { family: 'monospace', size: 10 } },
-            suggestedMin: 0,
-            suggestedMax: 0.005
-          }
-        }
-      }
-    });
+    // Chart.js: Safe Initialization
+    let mseChart = null;
+    let residualChart = null;
 
-    // Chart.js: Feature Residual Horizontal Bar
-    const ctxResidual = document.getElementById('residualChart').getContext('2d');
-    const residualChart = new Chart(ctxResidual, {
-      type: 'bar',
-      data: {
-        labels: ['tcp_ratio', 'syn_rate', 'fw_reject', 'dns_nx', 'k8s_err'],
-        datasets: [{
-          label: 'Residual Score',
-          data: [0.008, 0.006, 0.004, 0.002, 0.001],
-          backgroundColor: '#06b6d4',
-          borderRadius: 4
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
-          y: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 } } }
-        }
+    try {
+      const elMse = document.getElementById('mseChart');
+      if (elMse && typeof Chart !== 'undefined') {
+        const ctxMse = elMse.getContext('2d');
+        const mseData = {
+          labels: Array(20).fill(''),
+          datasets: [
+            {
+              label: 'Reconstruction Loss (MSE)',
+              data: Array(20).fill(0.0005),
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+              pointHoverRadius: 4
+            },
+            {
+              label: 'Anomaly Threshold',
+              data: Array(20).fill(currentThreshold),
+              borderColor: '#f43f5e',
+              borderWidth: 1.5,
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        };
+        mseChart = new Chart(ctxMse, {
+          type: 'line',
+          data: mseData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } }
+            },
+            scales: {
+              x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { display: false } },
+              y: {
+                grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                ticks: { color: '#94a3b8', font: { family: 'monospace', size: 10 } },
+                suggestedMin: 0,
+                suggestedMax: 0.005
+              }
+            }
+          }
+        });
       }
-    });
+    } catch (e) {
+      console.warn('Failed to initialize mseChart', e);
+    }
+
+    try {
+      const elRes = document.getElementById('residualChart');
+      if (elRes && typeof Chart !== 'undefined') {
+        const ctxResidual = elRes.getContext('2d');
+        residualChart = new Chart(ctxResidual, {
+          type: 'bar',
+          data: {
+            labels: ['tcp_ratio', 'syn_rate', 'fw_reject', 'dns_nx', 'k8s_err'],
+            datasets: [{
+              label: 'Residual Score',
+              data: [0.008, 0.006, 0.004, 0.002, 0.001],
+              backgroundColor: '#06b6d4',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: 'rgba(51, 65, 85, 0.25)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+              y: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 } } }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to initialize residualChart', e);
+    }
 
     // Render Event Rows in Flagged Events Table
     function renderEvents(events) {
@@ -740,6 +761,28 @@ def get_dashboard_html() -> str:
         `;
         tbody.appendChild(tr);
       });
+
+      // Populate latest live/historical MSE into the chart if available
+      if (events.length > 0) {
+        const latestEvt = events[0];
+        const latestMse = Number(latestEvt.mse != null ? latestEvt.mse : 0);
+        document.getElementById('card-mse').innerText = latestMse.toFixed(5);
+        if (latestEvt.latency_ms) {
+          const lat = Number(latestEvt.latency_ms);
+          document.getElementById('top-latency').innerText = `${lat.toFixed(2)} ms`;
+          document.getElementById('mob-latency').innerText = `${lat.toFixed(2)} ms`;
+          document.getElementById('card-latency').innerText = lat.toFixed(2);
+        }
+        if (mseChart && mseChart.data && mseChart.data.datasets && mseChart.data.datasets[0]) {
+          const reversedEvents = [...events].reverse().slice(-20);
+          if (reversedEvents.length > 0) {
+            const mses = reversedEvents.map(e => Number(e.mse != null ? e.mse : 0.0005));
+            while (mses.length < 20) mses.unshift(0.0005);
+            mseChart.data.datasets[0].data = mses.slice(-20);
+            mseChart.update();
+          }
+        }
+      }
     }
 
     // Fetch Events API
@@ -780,10 +823,14 @@ def get_dashboard_html() -> str:
           document.getElementById('tpu-pill').className = "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-950/80 text-amber-400 border border-amber-800/80 shrink-0";
           document.getElementById('tpu-pill').innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-amber-400 mr-1.5"></span>CPU Mode`;
         }
+
+        if (mseChart && mseChart.data && mseChart.data.datasets && mseChart.data.datasets[1]) {
+          mseChart.data.datasets[1].data = Array(20).fill(currentThreshold);
+          mseChart.update();
+        }
       } catch (e) {
         console.warn('Status poll error', e);
       }
-    }
     }
 
     // Interactive Scenario Injection
@@ -848,16 +895,25 @@ def get_dashboard_html() -> str:
         document.getElementById('card-latency').innerText = latencyMs.toFixed(2);
         document.getElementById('card-mse').innerText = mse.toFixed(5);
         
-        // Push to chart
-        mseChart.data.datasets[0].data.shift();
-        mseChart.data.datasets[0].data.push(mse);
-        mseChart.data.datasets[1].data.shift();
-        mseChart.data.datasets[1].data.push(currentThreshold);
+        // Push to chart if initialized
+        if (mseChart && mseChart.data && mseChart.data.datasets) {
+          mseChart.data.datasets[0].data.shift();
+          mseChart.data.datasets[0].data.push(mse);
+          mseChart.data.datasets[1].data.shift();
+          mseChart.data.datasets[1].data.push(currentThreshold);
+
+          if (isAnomaly) {
+            mseChart.data.datasets[0].borderColor = '#f43f5e';
+            mseChart.data.datasets[0].backgroundColor = 'rgba(244, 63, 94, 0.18)';
+          } else {
+            mseChart.data.datasets[0].borderColor = '#10b981';
+            mseChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.12)';
+          }
+          mseChart.update();
+        }
 
         // Update colors based on anomaly
         if (isAnomaly) {
-          mseChart.data.datasets[0].borderColor = '#f43f5e';
-          mseChart.data.datasets[0].backgroundColor = 'rgba(244, 63, 94, 0.18)';
           document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-rose-400 tracking-tight";
           document.getElementById('card-mse-bar').className = "bg-rose-500 h-full rounded-full transition-all duration-300";
           document.getElementById('card-mse-bar').style.width = "100%";
@@ -869,8 +925,6 @@ def get_dashboard_html() -> str:
           anomaliesCount++;
           document.getElementById('card-anomalies-count').innerText = anomaliesCount;
         } else {
-          mseChart.data.datasets[0].borderColor = '#10b981';
-          mseChart.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.12)';
           document.getElementById('card-mse').className = "text-2xl sm:text-3xl font-bold font-mono text-emerald-400 tracking-tight";
           document.getElementById('card-mse-bar').className = "bg-emerald-400 h-full rounded-full transition-all duration-300";
           const thresh = currentThreshold > 0 ? currentThreshold : 0.035;
@@ -881,16 +935,17 @@ def get_dashboard_html() -> str:
           document.getElementById('card-status-percent').innerText = `${pct}% of threshold`;
           document.getElementById('alert-banner').classList.add('hidden');
         }
-        mseChart.update();
 
-        // Update residuals bar chart
-        const residualsList = result.top_residuals || result.feature_residuals || [];
-        if (residualsList.length > 0) {
-          const sorted = [...residualsList].sort((a,b) => (Number(b.residual_mse ?? b.residual ?? 0)) - (Number(a.residual_mse ?? a.residual ?? 0))).slice(0, 5);
-          residualChart.data.labels = sorted.map(s => s.feature_name);
-          residualChart.data.datasets[0].data = sorted.map(s => Number(s.residual_mse ?? s.residual ?? 0));
-          residualChart.data.datasets[0].backgroundColor = isAnomaly ? '#f43f5e' : '#06b6d4';
-          residualChart.update();
+        // Update residuals bar chart if initialized
+        if (residualChart && residualChart.data && residualChart.data.datasets) {
+          const residualsList = result.top_residuals || result.feature_residuals || [];
+          if (residualsList.length > 0) {
+            const sorted = [...residualsList].sort((a,b) => (Number(b.residual_mse ?? b.residual ?? 0)) - (Number(a.residual_mse ?? a.residual ?? 0))).slice(0, 5);
+            residualChart.data.labels = sorted.map(s => s.feature_name);
+            residualChart.data.datasets[0].data = sorted.map(s => Number(s.residual_mse ?? s.residual ?? 0));
+            residualChart.data.datasets[0].backgroundColor = isAnomaly ? '#f43f5e' : '#06b6d4';
+            residualChart.update();
+          }
         }
 
         // Instantly refresh the Flagged Events table

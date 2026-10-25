@@ -7,9 +7,11 @@ from collections import deque
 from contextlib import asynccontextmanager
 import logging
 import time
+import os
 from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.config import settings
@@ -78,6 +80,10 @@ app = FastAPI(
     description="Sub-millisecond INT8 Autoencoder Anomaly Detection on Google Coral Edge TPU",
     lifespan=lifespan,
 )
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Dashboard"])
