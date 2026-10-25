@@ -590,7 +590,7 @@ def get_dashboard_html() -> str:
 
   <!-- Dashboard JavaScript Logic -->
   <script>
-    let currentThreshold = 0.001806;
+    let currentThreshold = 0.045000;
     let totalInferences = 0;
     let anomaliesCount = 0;
     let isPolling = true;

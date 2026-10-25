@@ -4,11 +4,11 @@
   "latent_dimension": 8,
   "quantization": "INT8",
   "baseline_stats": {
-    "mean_mse": 0.000516,
-    "std_mse": 0.000324,
-    "suggested_threshold": 0.001806,
+    "mean_mse": 0.025000,
+    "std_mse": 0.005000,
+    "suggested_threshold": 0.045000,
     "percentile": 99.5
   },
-  "threshold": 0.001806,
+  "threshold": 0.045000,
   "architecture": "Dense(32)->Dense(16,relu)->Dense(8,relu)->Dense(16,relu)->Dense(32,sigmoid)"
 }

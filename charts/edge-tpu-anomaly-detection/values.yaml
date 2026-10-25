@@ -107,11 +107,11 @@ victoriaMetrics:
     scrapeTimeout: 5s
   vmRule:
     enabled: true
-    highAnomalyMseThreshold: 0.045
-    earlyWarningMseThreshold: 0.022
+    highAnomalyMseThreshold: 0.065
+    earlyWarningMseThreshold: 0.050
     featureResidualThreshold: 0.35
     evaluationDuration: 20s
-    earlyWarningDuration: 15s
+    earlyWarningDuration: 20s
     latencyThresholdSeconds: 0.002
 
 # 6. Grafana Dashboard Auto-Import

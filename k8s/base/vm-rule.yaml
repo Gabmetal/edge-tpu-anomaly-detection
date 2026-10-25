@@ -12,21 +12,21 @@ spec:
       rules:
         # Tier 1: Early Detection / Pre-Attack Reconnaissance Warning
         - alert: EarlyNetworkAnomalyWarning
-          expr: anomaly_reconstruction_error_mse > 0.022
-          for: 15s
+          expr: anomaly_reconstruction_error_mse > 0.050
+          for: 20s
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection
             threat_stage: early-reconnaissance
           annotations:
             summary: "Early Network Anomaly Warning Detected on Edge TPU"
-            description: "Autoencoder reconstruction error MSE = {{ $value | printf \"%.5f\" }} exceeds early warning baseline (0.022) for >15s."
+            description: "Autoencoder reconstruction error MSE = {{ $value | printf \"%.5f\" }} exceeds early warning baseline (0.050) for >20s."
             runbook_url: "https://anomaly.gabo.lat"
 
         # Tier 2: Specific Intrusion Signatures (Root-Cause Attributed)
         - alert: SynFloodAttackDetected
-          expr: (anomaly_feature_residual{feature_name=~".*syn.*"} > 0.35) and (anomaly_reconstruction_error_mse > 0.025)
-          for: 15s
+          expr: (anomaly_feature_residual{feature_name=~".*syn.*"} > 0.35) and (anomaly_reconstruction_error_mse > 0.050)
+          for: 20s
           labels:
             severity: critical
             pipeline: edge-tpu-anomaly-detection
@@ -38,8 +38,8 @@ spec:
             runbook_url: "https://anomaly.gabo.lat"
 
         - alert: DnsTunnelingOrExfiltrationDetected
-          expr: ((anomaly_feature_residual{feature_name="dns_nxdomain_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="dns_query_rate"} > 0.40)) and (anomaly_reconstruction_error_mse > 0.025)
-          for: 15s
+          expr: ((anomaly_feature_residual{feature_name="dns_nxdomain_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="dns_query_rate"} > 0.40)) and (anomaly_reconstruction_error_mse > 0.050)
+          for: 20s
           labels:
             severity: critical
             pipeline: edge-tpu-anomaly-detection
@@ -51,8 +51,8 @@ spec:
             runbook_url: "https://anomaly.gabo.lat"
 
         - alert: NetworkPortScanSweepDetected
-          expr: ((anomaly_feature_residual{feature_name="firewall_reject_rate"} > 0.30) or (anomaly_feature_residual{feature_name="flow_fanout_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="flow_unique_dst_ports"} > 0.35)) and (anomaly_reconstruction_error_mse > 0.025)
-          for: 15s
+          expr: ((anomaly_feature_residual{feature_name="firewall_reject_rate"} > 0.30) or (anomaly_feature_residual{feature_name="flow_fanout_ratio"} > 0.35) or (anomaly_feature_residual{feature_name="flow_unique_dst_ports"} > 0.35)) and (anomaly_reconstruction_error_mse > 0.050)
+          for: 20s
           labels:
             severity: warning
             pipeline: edge-tpu-anomaly-detection
@@ -64,8 +64,8 @@ spec:
             runbook_url: "https://anomaly.gabo.lat"
 
         - alert: K8sControlPlaneTamperingDetected
-          expr: (anomaly_feature_residual{feature_name=~"k8s_api_401_rate|k8s_api_403_rate|k8s_exec_probe_rate|k8s_privilege_escalate_rate"} > 0.20) and (anomaly_reconstruction_error_mse > 0.020)
-          for: 15s
+          expr: (anomaly_feature_residual{feature_name=~"k8s_api_401_rate|k8s_api_403_rate|k8s_exec_probe_rate|k8s_privilege_escalate_rate"} > 0.20) and (anomaly_reconstruction_error_mse > 0.045)
+          for: 20s
           labels:
             severity: critical
             pipeline: edge-tpu-anomaly-detection
@@ -78,7 +78,7 @@ spec:
 
         # Tier 3: Critical Multi-Feature Anomaly (Full Automated Quarantine)
         - alert: HighNetworkAnomalyScore
-          expr: anomaly_reconstruction_error_mse > 0.045
+          expr: anomaly_reconstruction_error_mse > 0.065
           for: 20s
           labels:
             severity: critical
@@ -90,7 +90,7 @@ spec:
             runbook_url: "https://anomaly.gabo.lat"
 
         - alert: CriticalNetworkIntrusionDetected
-          expr: anomaly_reconstruction_error_mse > 0.045
+          expr: anomaly_reconstruction_error_mse > 0.065
           for: 20s
           labels:
             severity: critical

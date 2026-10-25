@@ -39,8 +39,8 @@ class Settings(BaseModel):
     edgetpu_device: str = os.getenv("EDGETPU_DEVICE", "")
 
     # Anomaly Decision Parameters
-    # Default threshold calibrated on 99.5th percentile of normal baseline
-    anomaly_threshold: float = float(os.getenv("ANOMALY_THRESHOLD", "0.001806"))
+    # Default threshold calibrated on 99.5th percentile of INT8 Edge TPU baseline (0.045)
+    anomaly_threshold: float = float(os.getenv("ANOMALY_THRESHOLD", "0.045000"))
     input_dimension: int = int(os.getenv("INPUT_DIMENSION", "32"))
 
     # Reconnection & Circuit Breaker Settings

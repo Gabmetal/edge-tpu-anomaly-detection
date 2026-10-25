@@ -129,11 +129,11 @@
               },
               {
                 "color": "orange",
-                "value": 0.022
+                "value": 0.05
               },
               {
                 "color": "red",
-                "value": 0.045
+                "value": 0.065
               }
             ]
           },
@@ -625,11 +625,11 @@
               },
               {
                 "color": "orange",
-                "value": 0.022
+                "value": 0.05
               },
               {
                 "color": "red",
-                "value": 0.045
+                "value": 0.065
               }
             ]
           },
@@ -1155,5 +1155,5 @@
   "timezone": "browser",
   "title": "Edge TPU Network & Cluster Anomaly Detection",
   "uid": "edge-tpu-anomaly-detection",
-  "version": 2
+  "version": 3
 }
