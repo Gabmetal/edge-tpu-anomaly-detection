@@ -447,7 +447,7 @@ def get_dashboard_html() -> str:
         
         <!-- Quick Portals to See Blocked Things -->
         <div class="flex items-center space-x-2 text-xs">
-          <a href="http://192.168.0.1:8080/#querylog" target="_blank" class="px-3 py-1.5 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-slate-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm">
+          <a href="https://adguard.gabo.lat/#logs" target="_blank" class="px-3 py-1.5 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-slate-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm">
             <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
             <span>AdGuard Query Log</span>
             <svg class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -530,7 +530,7 @@ def get_dashboard_html() -> str:
             <div class="flex justify-between py-2">
               <dt class="text-slate-400">AdGuard Home DNS:</dt>
               <dd class="font-mono text-slate-300">
-                <a href="http://192.168.0.1:8080/#querylog" target="_blank" class="text-indigo-400 hover:underline">192.168.0.1:8080 (Query Log) &rarr;</a>
+                <a href="https://adguard.gabo.lat/#logs" target="_blank" class="text-indigo-400 hover:underline">adguard.gabo.lat (Query Log) &rarr;</a>
               </dd>
             </div>
           </dl>

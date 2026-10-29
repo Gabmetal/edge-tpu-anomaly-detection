@@ -33,7 +33,7 @@ inference:
       memory: 128Mi
     limits:
       cpu: 500m
-      memory: 384Mi
+      memory: 512Mi
 
   service:
     type: ClusterIP
@@ -132,7 +132,7 @@ mitigation:
     tag: 3.11-slim-bookworm
     pullPolicy: IfNotPresent
   port: 9095
-  openwrtHost: "" # Leave empty for local execution, or set e.g. "192.168.1.1"
+  openwrtHost: "192.168.0.1" # Leave empty for local execution, or set e.g. "192.168.1.1"
   quarantineTimeout: "3600s"
   resources:
     requests:
